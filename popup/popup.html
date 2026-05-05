@@ -1,0 +1,207 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <title>Mailtimer</title>
+  <link rel="stylesheet" href="popup.css" />
+</head>
+<body>
+
+<div id="app">
+
+  <!-- ═══ SETUP SCREEN ═══════════════════════════════════════════════════ -->
+  <div id="screen-setup" class="screen active">
+    <div class="layout">
+
+      <!-- LEFT: settings groups -->
+      <div class="col-left">
+
+        <!-- Timer length -->
+        <section class="group">
+          <div class="group-header">
+            <span class="group-title">Timer length</span>
+            <label class="toggle-row">
+              <span class="toggle-label">Random</span>
+              <input type="checkbox" id="toggle-random" />
+              <span class="toggle-track"><span class="toggle-thumb"></span></span>
+            </label>
+          </div>
+          <div id="timer-fixed" class="timer-input-row">
+            <label for="input-seconds">Seconds</label>
+            <input type="number" id="input-seconds" min="1" max="86400" value="600" />
+          </div>
+          <div id="timer-random" class="timer-input-row hidden">
+            <label for="input-min">Min</label>
+            <input type="number" id="input-min" min="1" max="86400" value="60" />
+            <label for="input-max">Max</label>
+            <input type="number" id="input-max" min="1" max="86400" value="600" />
+          </div>
+        </section>
+
+        <!-- Modifiers -->
+        <section class="group">
+          <div class="group-header">
+            <span class="group-title">Modifiers</span>
+          </div>
+          <label class="option-row">
+            <input type="checkbox" id="toggle-tardis" />
+            <span>
+              <span class="option-name">TARDIS</span>
+              <span class="option-desc">wibbly wobbly... timey... wimey...?</span>
+            </span>
+          </label>
+          <label class="option-row">
+            <input type="checkbox" id="toggle-spin" />
+            <span>
+              <span class="option-name">Spin the wheel</span>
+              <span class="option-desc">When the timer reaches zero, it might send... or it might not.</span>
+            </span>
+          </label>
+          <label class="option-row">
+            <input type="checkbox" id="toggle-lastminute" />
+            <span>
+              <span class="option-name">Last minute</span>
+              <span class="option-desc">You can't change your mind until the last minute. Pairs dangerously well with 'Blindfold'...</span>
+            </span>
+          </label>
+        </section>
+
+        <!-- Chaos -->
+        <section class="group chaos-group">
+          <div class="group-header">
+            <span class="group-title">Chaos</span>
+            <span class="chaos-badge">!</span>
+          </div>
+          <label class="option-row">
+            <input type="checkbox" id="toggle-roulette" />
+            <span>
+              <span class="option-name">Roulette</span>
+              <span class="option-desc">A chance of sending immediately on Start</span>
+            </span>
+          </label>
+          <label class="option-row">
+            <input type="checkbox" id="toggle-brokenui" />
+            <span>
+              <span class="option-name">Bricked UI</span>
+              <span class="option-desc">The UI might become unstable</span>
+            </span>
+          </label>
+          <label class="option-row">
+            <input type="checkbox" id="toggle-rosetta" />
+            <span>
+              <span class="option-name">Rosetta stone</span>
+              <span class="option-desc">Labels and digits get scrambled</span>
+            </span>
+          </label>
+          <label class="option-row">
+            <input type="checkbox" id="toggle-commitment" />
+            <span>
+              <span class="option-name">Commitment issues</span>
+              <span class="option-desc">This mode is for people who want to send, and who consent to sending, but find they get cold feet. We'll help you follow through, guaranteed.</span>
+            </span>
+          </label>
+        </section>
+
+        <!-- Brave metadata -->
+        <section class="group">
+          <label class="option-row brave-row">
+            <input type="checkbox" id="toggle-brave" />
+            <span>
+              <span class="option-name">Include a little extra in this message...</span>
+              <span class="option-desc">...if you're feeling brave</span>
+            </span>
+          </label>
+        </section>
+
+      </div><!-- /col-left -->
+
+      <!-- RIGHT: controls -->
+      <div class="col-right">
+        <div class="timer-display" id="display-setup">--:--</div>
+
+        <div class="blindfold-block">
+          <label class="option-row">
+            <input type="checkbox" id="toggle-blindfold" />
+            <span>
+              <span class="option-name">Blindfold</span>
+              <span class="option-desc">Hides the countdown. Cannot be removed once started.</span>
+            </span>
+          </label>
+          <div id="peek-limit-block" class="peek-limit-row hidden">
+            <label class="option-row">
+              <input type="checkbox" id="toggle-peek-limit" />
+              <span>
+                <span class="option-name">Limit my peeks to:</span>
+                <span class="option-desc">Run out and you're flying blind for good.</span>
+              </span>
+            </label>
+            <div id="peek-limit-input-row" class="timer-input-row hidden">
+              <input type="number" id="input-peek-limit" min="1" max="99" value="3" />
+              <span class="option-desc">peeks</span>
+            </div>
+          </div>
+        </div>
+
+        <div class="consent-block">
+          <label class="option-row">
+            <input type="checkbox" id="consent-checkbox" />
+            <span>
+              <span class="option-name" style="font-size:11px;font-weight:600;text-transform:uppercase;letter-spacing:0.06em;color:#888;">Consent</span>
+              <span id="consent-text" class="option-desc">I understand this will send an email on my behalf. I consent to the recipient receiving and using this information at their discretion.</span>
+            </span>
+          </label>
+        </div>
+
+        <div class="controls-stack">
+          <div id="warn-no-to" class="field-warning hidden">No recipient in the To field. Add one before starting.</div>
+          <button id="btn-start" class="btn btn-primary" disabled>Start</button>
+        </div>
+      </div>
+
+    </div>
+  </div><!-- /screen-setup -->
+
+
+  <!-- ═══ RUNNING SCREEN ══════════════════════════════════════════════════ -->
+  <div id="screen-running" class="screen">
+    <div class="layout">
+
+      <div class="col-left running-info">
+        <div class="run-label" id="run-mode-label"></div>
+        <div class="run-flags" id="run-flags"></div>
+      </div>
+
+      <div class="col-right">
+        <div class="timer-display large" id="display-running">10:00</div>
+        <div class="speed-indicator" id="speed-indicator"></div>
+
+        <div class="controls-stack">
+          <button id="btn-pause"    class="btn">Pause</button>
+          <button id="btn-cancel"   class="btn btn-danger">Cancel</button>
+          <button id="btn-peek"     class="btn hidden">Take a peek</button>
+          <p id="peek-exhausted-msg" class="option-desc hidden" style="text-align:center;color:#c03030;">No peeks remaining.</p>
+          <button id="btn-blindfold-live" class="btn hidden">Blindfold</button>
+          <button id="btn-roulette-live"  class="btn btn-chaos hidden">Roulette</button>
+          <p id="roulette-live-desc" class="option-desc roulette-desc hidden">A chance it'll send now.</p>
+        </div>
+      </div>
+
+    </div>
+  </div>
+
+
+  <!-- ═══ OUTCOME SCREEN ══════════════════════════════════════════════════ -->
+  <div id="screen-outcome" class="screen">
+    <div class="outcome-content">
+      <div class="outcome-icon" id="outcome-icon"></div>
+      <div class="outcome-title" id="outcome-title"></div>
+      <div class="outcome-detail" id="outcome-detail"></div>
+      <button id="btn-reset" class="btn btn-primary" style="margin-top:1.5rem">Close</button>
+    </div>
+  </div>
+
+</div>
+
+<script type="module" src="popup.js"></script>
+</body>
+</html>
