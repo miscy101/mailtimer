@@ -1,0 +1,335 @@
+/* popup.css — Mailtimer Thunderbird extension */
+
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+body {
+  font-family: -apple-system, "Segoe UI", sans-serif;
+  font-size: 13px;
+  color: #1a1a1a;
+  background: #f5f5f5;
+  min-width: 480px;
+}
+
+/* ── Screens ──────────────────────────────────────────────────────────── */
+.screen        { display: none; }
+.screen.active { display: block; }
+
+/* ── Layout: two columns ─────────────────────────────────────────────── */
+.layout {
+  display: flex;
+  gap: 0;
+}
+
+.col-left {
+  flex: 1;
+  padding: 12px;
+  border-right: 1px solid #ddd;
+  overflow-y: auto;
+}
+
+.col-right {
+  width: 210px;
+  flex-shrink: 0;
+  padding: 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  background: #fafafa;
+}
+
+/* ── Groups ──────────────────────────────────────────────────────────── */
+.group {
+  margin-bottom: 14px;
+  padding-bottom: 14px;
+  border-bottom: 1px solid #e8e8e8;
+}
+.group:last-child { border-bottom: none; margin-bottom: 0; }
+
+.group-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 8px;
+}
+
+.group-title {
+  font-size: 11px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: #888;
+}
+
+/* ── Toggle switch ───────────────────────────────────────────────────── */
+.toggle-row {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  cursor: pointer;
+  user-select: none;
+}
+.toggle-row input[type="checkbox"] { display: none; }
+.toggle-label { font-size: 12px; color: #555; }
+
+.toggle-track {
+  position: relative;
+  width: 32px;
+  height: 18px;
+  background: #ccc;
+  border-radius: 9px;
+  transition: background 0.2s;
+  flex-shrink: 0;
+}
+.toggle-thumb {
+  position: absolute;
+  top: 2px; left: 2px;
+  width: 14px; height: 14px;
+  border-radius: 50%;
+  background: #fff;
+  transition: transform 0.2s;
+  pointer-events: none;
+}
+.toggle-row input:checked + .toggle-track { background: #4a6cf7; }
+.toggle-row input:checked + .toggle-track .toggle-thumb { transform: translateX(14px); }
+
+/* ── Timer input rows ────────────────────────────────────────────────── */
+.timer-input-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+.timer-input-row label {
+  font-size: 12px;
+  color: #555;
+  min-width: 36px;
+}
+.timer-input-row input[type="number"] {
+  width: 72px;
+  padding: 4px 6px;
+  border: 1px solid #ccc;
+  border-radius: 4px;
+  font-size: 13px;
+  color: #1a1a1a;
+  background: #fff;
+}
+.timer-input-row input[type="number"]:focus {
+  outline: none;
+  border-color: #4a6cf7;
+}
+/* hide browser spinner arrows */
+.timer-input-row input[type="number"]::-webkit-inner-spin-button,
+.timer-input-row input[type="number"]::-webkit-outer-spin-button { -webkit-appearance: none; }
+.timer-input-row input[type="number"] { -moz-appearance: textfield; }
+
+/* ── Option rows (checkbox + label) ─────────────────────────────────── */
+.option-row {
+  display: flex;
+  align-items: flex-start;
+  gap: 7px;
+  padding: 4px 0;
+  cursor: pointer;
+  user-select: none;
+}
+.option-row input[type="checkbox"] {
+  margin-top: 2px;
+  flex-shrink: 0;
+  accent-color: #4a6cf7;
+}
+.option-row > span {
+  display: block;
+}
+.option-name {
+  font-size: 12px;
+  font-weight: 500;
+  color: #1a1a1a;
+  display: block;
+  line-height: 1.3;
+}
+.option-desc {
+  font-size: 11px;
+  color: #888;
+  display: block;
+  line-height: 1.3;
+  margin-top: 1px;
+}
+
+/* ── Chaos group ─────────────────────────────────────────────────────── */
+.chaos-group .group-header { margin-bottom: 6px; }
+.chaos-badge {
+  font-size: 10px;
+  font-weight: 700;
+  background: #f5a623;
+  color: #fff;
+  border-radius: 3px;
+  padding: 1px 5px;
+}
+.chaos-notice {
+  margin-top: 6px;
+  padding: 7px 9px;
+  background: #fff8ee;
+  border: 1px solid #f5d08a;
+  border-radius: 5px;
+  font-size: 11px;
+  color: #7a5c00;
+  line-height: 1.4;
+}
+
+/* ── Hidden utility ──────────────────────────────────────────────────── */
+.hidden { display: none !important; }
+
+/* ── Right column: timer display ─────────────────────────────────────── */
+.timer-display {
+  font-size: 32px;
+  font-weight: 300;
+  font-variant-numeric: tabular-nums;
+  letter-spacing: 0.04em;
+  color: #1a1a1a;
+  text-align: center;
+  padding: 8px 0 4px;
+}
+.timer-display.large { font-size: 44px; }
+
+/* ── Blindfold block ─────────────────────────────────────────────────── */
+.blindfold-block {
+  padding: 8px 0 4px;
+  border-top: 1px solid #e8e8e8;
+  border-bottom: 1px solid #e8e8e8;
+}
+
+/* ── Consent block ───────────────────────────────────────────────────── */
+.consent-block {
+  flex: 1;
+}
+
+#consent-text {
+  font-size: 11px;
+  color: #888;
+  line-height: 1.4;
+}
+
+/* ── Peek limit row ───────────────────────────────────────────────────── */
+.peek-limit-row {
+  margin-top: 4px;
+  padding-top: 6px;
+  border-top: 1px dashed #e0e0e0;
+}
+
+/* ── Validation warning ──────────────────────────────────────────────── */
+.field-warning {
+  padding: 7px 9px;
+  background: #fff0f0;
+  border: 1px solid #f0a0a0;
+  border-radius: 5px;
+  font-size: 11px;
+  color: #a03030;
+  line-height: 1.4;
+}
+
+/* ── Buttons ─────────────────────────────────────────────────────────── */
+.controls-stack {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.btn {
+  width: 100%;
+  padding: 8px 12px;
+  border: 1px solid #ccc;
+  border-radius: 5px;
+  background: #fff;
+  font-size: 13px;
+  font-weight: 500;
+  color: #1a1a1a;
+  cursor: pointer;
+  transition: background 0.15s, border-color 0.15s;
+  text-align: center;
+}
+.btn:hover:not(:disabled)  { background: #f0f0f0; border-color: #aaa; }
+.btn:active:not(:disabled) { background: #e6e6e6; }
+.btn:disabled              { opacity: 0.4; cursor: default; }
+
+.btn-primary {
+  background: #4a6cf7;
+  border-color: #3a5ce6;
+  color: #fff;
+}
+.btn-primary:hover:not(:disabled)  { background: #3a5ce6; }
+.btn-primary:active:not(:disabled) { background: #2a4cd6; }
+
+.btn-danger {
+  border-color: #e04848;
+  color: #c03030;
+}
+.btn-danger:hover:not(:disabled)  { background: #fff0f0; }
+
+.btn-chaos {
+  border-color: #f5a623;
+  color: #7a5000;
+}
+.btn-chaos:hover:not(:disabled) { background: #fff8ee; }
+
+.roulette-desc {
+  margin-top: 2px;
+  padding: 0 2px;
+}
+
+/* ── Running screen ──────────────────────────────────────────────────── */
+.running-info {
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  padding: 16px;
+}
+.run-label {
+  font-size: 12px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: #888;
+  margin-bottom: 10px;
+}
+.run-flags {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+}
+.run-flag {
+  font-size: 12px;
+  color: #555;
+  display: flex;
+  align-items: center;
+  gap: 5px;
+}
+.run-flag::before {
+  content: '';
+  width: 6px; height: 6px;
+  border-radius: 50%;
+  background: #4a6cf7;
+  flex-shrink: 0;
+}
+
+.speed-indicator {
+  font-size: 11px;
+  color: #aaa;
+  text-align: center;
+  min-height: 16px;
+}
+
+/* ── Outcome screen ──────────────────────────────────────────────────── */
+#screen-outcome .layout,
+#screen-outcome .col-right { display: block; }
+
+.outcome-content {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  min-height: 380px;
+  padding: 24px;
+  text-align: center;
+}
+.outcome-icon  { font-size: 40px; margin-bottom: 12px; }
+.outcome-title { font-size: 20px; font-weight: 600; margin-bottom: 8px; }
+.outcome-detail { font-size: 13px; color: #666; line-height: 1.5; max-width: 280px; white-space: pre-line; }
