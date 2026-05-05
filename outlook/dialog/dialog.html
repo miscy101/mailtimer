@@ -1,0 +1,57 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <title>Mailtimer — running</title>
+  <!-- Office.js needed for messageParent() to communicate back to task pane -->
+  <script type="text/javascript" src="https://appsforoffice.microsoft.com/lib/1/hosted/office.js"></script>
+  <link rel="stylesheet" href="../../popup/popup.css" />
+  <link rel="stylesheet" href="dialog.css" />
+</head>
+<body>
+
+<div id="app">
+
+  <!-- ═══ RUNNING SCREEN ════════════════════════════════════════════════ -->
+  <div id="screen-running" class="screen active">
+    <div class="layout">
+
+      <div class="col-left running-info">
+        <div class="run-label" id="run-mode-label"></div>
+        <div class="run-flags" id="run-flags"></div>
+      </div>
+
+      <div class="col-right">
+        <div class="timer-display large" id="display-running">—</div>
+        <div class="speed-indicator" id="speed-indicator"></div>
+
+        <div class="controls-stack">
+          <button id="btn-pause"           class="btn">Pause</button>
+          <button id="btn-cancel"          class="btn btn-danger">Cancel</button>
+          <button id="btn-peek"            class="btn hidden">Take a peek</button>
+          <p id="peek-exhausted-msg" class="option-desc hidden" style="text-align:center;color:#c03030;">No peeks remaining.</p>
+          <button id="btn-blindfold-live"  class="btn hidden">Blindfold</button>
+          <button id="btn-roulette-live"   class="btn btn-chaos hidden">Roulette</button>
+          <p     id="roulette-live-desc"   class="option-desc roulette-desc hidden">A chance it'll send now.</p>
+        </div>
+      </div>
+
+    </div>
+  </div>
+
+
+  <!-- ═══ OUTCOME SCREEN ════════════════════════════════════════════════ -->
+  <div id="screen-outcome" class="screen">
+    <div class="outcome-content">
+      <div class="outcome-icon"  id="outcome-icon"></div>
+      <div class="outcome-title" id="outcome-title"></div>
+      <div class="outcome-detail" id="outcome-detail"></div>
+      <button id="btn-reset" class="btn btn-primary" style="margin-top:1.5rem">Close</button>
+    </div>
+  </div>
+
+</div>
+
+<script type="module" src="dialog.js"></script>
+</body>
+</html>

@@ -1,0 +1,46 @@
+/*
+ * dialog.css — layout overrides for the Office dialog window
+ *
+ * The dialog is opened at height:50%, width:35% of the screen.
+ * We want the timer to be prominent and centred.
+ */
+
+body {
+  min-width: 0;
+  background: #f5f5f5;
+}
+
+/* Make the running layout vertical and centred in the dialog */
+#screen-running .layout {
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  min-height: 100vh;
+  padding: 24px;
+  gap: 16px;
+}
+
+#screen-running .col-left {
+  border-right: none;
+  border-bottom: 1px solid #e8e8e8;
+  padding-bottom: 12px;
+  width: 100%;
+  text-align: center;
+}
+
+#screen-running .col-right {
+  width: 100%;
+  background: transparent;
+  align-items: center;
+}
+
+.timer-display.large {
+  font-size: 72px;
+  text-align: center;
+  padding: 16px 0;
+}
+
+.controls-stack {
+  width: 100%;
+  max-width: 200px;
+}

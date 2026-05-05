@@ -1,0 +1,106 @@
+/*
+ * taskpane.css — layout overrides for the Office task pane
+ *
+ * Task panes are narrow (~320px) and vertical.
+ * The popup.css two-column layout doesn't fit here, so we
+ * reflow everything into a single column.
+ *
+ * All other styles (groups, option-rows, buttons, etc.) are
+ * inherited from popup.css unchanged.
+ */
+
+body {
+  min-width: 0;    /* task pane has its own width constraints */
+  overflow-x: hidden;
+}
+
+/* Single-column reflow */
+.taskpane-layout {
+  flex-direction: column;
+}
+
+.taskpane-layout .col-left {
+  border-right: none;
+  border-bottom: 1px solid #ddd;
+  padding-bottom: 12px;
+  max-height: none;
+  overflow-y: visible;
+}
+
+.taskpane-layout .col-right {
+  width: auto;
+  background: transparent;
+  padding-top: 12px;
+}
+
+.taskpane-controls {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+/* Peek limit row — inherits .peek-limit-row from popup.css via import */
+/* (popup.css is loaded before taskpane.css, so .peek-limit-row is available) */
+
+/* Unsupported platform screen */
+.unsupported-content {
+  padding: 24px 16px;
+  text-align: center;
+}
+.unsupported-icon {
+  font-size: 36px;
+  margin-bottom: 12px;
+  color: #c05000;
+}
+.unsupported-title {
+  font-size: 15px;
+  font-weight: 600;
+  color: #1a1a1a;
+  margin-bottom: 10px;
+}
+.unsupported-detail {
+  font-size: 12px;
+  color: #555;
+  line-height: 1.6;
+  white-space: pre-line;
+  text-align: left;
+  background: #fff8ee;
+  border: 1px solid #f5a623;
+  border-radius: 5px;
+  padding: 10px 12px;
+}
+
+/* Outlook-specific notice shown in setup */
+.outlook-notice {
+  margin: 8px 0 4px;
+  padding: 9px 11px;
+  background: #fff8ee;
+  border: 1px solid #f5a623;
+  border-radius: 5px;
+  font-size: 11px;
+  color: #7a5c00;
+  line-height: 1.5;
+}
+.outlook-notice-title {
+  font-weight: 600;
+  margin-bottom: 5px;
+  font-size: 11px;
+}
+.outlook-notice p {
+  margin: 0 0 6px;
+}
+.outlook-notice p:last-child {
+  margin-bottom: 0;
+}
+
+/* Send-ready block — shown after timer fires in RS<1.14 mode */
+.send-ready-notice {
+  padding: 8px 10px;
+  background: #E1F5EE;
+  border: 1px solid #2D9E7A;
+  border-radius: 5px;
+  font-size: 12px;
+  color: #085041;
+  text-align: center;
+  line-height: 1.4;
+}
