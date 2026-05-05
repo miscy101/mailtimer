@@ -20,27 +20,18 @@ export function buildEmail(gameState, braveMetadata = null) {
  * Formats brave metadata into a clearly labelled block appended to the email.
  */
 export function formatBraveMetadata(meta) {
-  const lines = [
-    '',
-    '════════════════════════════════',
-    'A little extra — sender system info',
-    '(The sender consented to including this)',
-    '════════════════════════════════',
-    '',
-    `Sent at (UTC):          ${meta['sent-at']      || '—'}`,
-    `Local date and time:    ${meta['local-time']   || '—'}`,
-    `Timezone (IANA):        ${meta['timezone']     || '—'}`,
-    `Approximate region:     ${meta['region-guess'] || '—'}`,
-    '',
-    `Language / locale:      ${meta['locale']       || '—'}`,
-    `Operating system:       ${meta['platform']     || '—'}`,
-    '',
-    `Time spent on timer:    ${meta['elapsed-seconds'] != null
-      ? meta['elapsed-seconds'] + ' seconds' : '—'}`,
-    '',
-    '════════════════════════════════',
+  const parts = [
+    'A little extra (sender consented)',
+    `Sent: ${meta['sent-at']      || '—'}`,
+    `Local time: ${meta['local-time']   || '—'}`,
+    `Timezone: ${meta['timezone']     || '—'}`,
+    `Region: ${meta['region-guess'] || '—'}`,
+    `Locale: ${meta['locale']       || '—'}`,
+    `OS: ${meta['platform']     || '—'}`,
+    `Time on timer: ${meta['elapsed-seconds'] != null
+      ? meta['elapsed-seconds'] + 's' : '—'}`,
   ];
-  return lines.join('\n');
+  return ' | ' + parts.join(' | ');
 }
 
 /**

@@ -1,0 +1,25 @@
+# Node
+node_modules/
+npm-debug.log*
+
+# macOS
+.DS_Store
+.AppleDouble
+.LSOverride
+
+# Windows
+Thumbs.db
+ehthumbs.db
+Desktop.ini
+
+# Local dev server certificates
+*.key
+*.crt
+*.pem
+
+# Test artefacts
+core/test.mjs
+
+# The .xpi is a build output — regenerated from source
+# Include it anyway for easy distribution via releases
+# *.xpi

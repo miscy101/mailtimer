@@ -4,7 +4,7 @@
   "name": "Mailtimer",
   "short_name": "Mailtimer",
   "description": "A countdown timer that sends your email when it reaches zero.",
-  "version": "1.0.0",
+  "version": "1.1.0",
   "author": "You",
 
   "browser_specific_settings": {

@@ -41,12 +41,14 @@ export class MailTimer {
     this._intervalId   = null;
     this._pauseCount   = 0;
 
-    // TARDIS-specific state
-    this._tardisTargetSpeed   = 1.0;  // speed we are heading toward
-    this._tardisCurrentSpeed  = 1.0;  // speed right now (interpolated)
-    this._tardisStepAge       = 0;    // ms elapsed in current 5-second ramp
-    this._tardisStepDuration  = 5000; // ms per ramp segment (constant)
-    this._tardisPrevSpeed     = 1.0;  // speed at the start of current ramp
+    // TARDIS-specific state — burst mechanic
+    // The timer alternates between normal speed (1.0×) and burst speed.
+    // Burst speed starts at 1.5× and increases by 0.5× each burst cycle.
+    // Each phase (normal or burst) lasts a random 5–20 seconds.
+    this._tardisBurstCount    = 0;      // how many bursts have fired so far
+    this._tardisInBurst       = false;  // currently in a burst?
+    this._tardisPhaseMs       = 0;      // ms remaining in current phase
+    this._tardisNextPhaseMs   = this._tardisRandomPhaseMs(); // duration of first phase
 
     // Game log
     this.log = {
@@ -65,10 +67,12 @@ export class MailTimer {
     if (this._intervalId) return; // already running
 
     if (this.mode === 'tardis') {
-      this._tardisCurrentSpeed  = 1.0;
-      this._tardisTargetSpeed   = this._newTardisSpeed();
-      this._tardisPrevSpeed     = 1.0;
-      this._tardisStepAge       = 0;
+      // Start in normal phase
+      this._tardisInBurst     = false;
+      this._tardisBurstCount  = 0;
+      this._tardisPhaseMs     = 0;
+      this._tardisNextPhaseMs = this._tardisRandomPhaseMs();
+      this._speed             = 1.0;
     }
 
     // We tick every 100ms for smooth TARDIS display.
@@ -78,25 +82,26 @@ export class MailTimer {
     this._intervalId = setInterval(() => {
       if (this._paused || this._cancelled) return;
 
-      // --- TARDIS: smoothly interpolate speed ---
+      // --- TARDIS: burst mechanic ---
       if (this.mode === 'tardis') {
-        this._tardisStepAge += TICK_MS;
+        this._tardisPhaseMs += TICK_MS;
 
-        if (this._tardisStepAge >= this._tardisStepDuration) {
-          // Ramp complete — lock in target, pick next target
-          this._tardisPrevSpeed     = this._tardisTargetSpeed;
-          this._tardisCurrentSpeed  = this._tardisTargetSpeed;
-          this._tardisTargetSpeed   = this._newTardisSpeed();
-          this._tardisStepAge       = 0;
-        } else {
-          // Linear interpolation: t goes 0→1 over the 5-second ramp
-          const t = this._tardisStepAge / this._tardisStepDuration;
-          this._tardisCurrentSpeed =
-            this._tardisPrevSpeed +
-            t * (this._tardisTargetSpeed - this._tardisPrevSpeed);
+        if (this._tardisPhaseMs >= this._tardisNextPhaseMs) {
+          // Phase complete — toggle between normal and burst
+          this._tardisPhaseMs = 0;
+          this._tardisNextPhaseMs = this._tardisRandomPhaseMs();
+
+          if (!this._tardisInBurst) {
+            // Entering a burst — speed is 1.5× + 0.5× per previous burst
+            this._tardisBurstCount++;
+            this._tardisInBurst = true;
+            this._speed = 1.0 + (this._tardisBurstCount * 0.5);
+          } else {
+            // Returning to normal speed
+            this._tardisInBurst = false;
+            this._speed = 1.0;
+          }
         }
-
-        this._speed = this._tardisCurrentSpeed;
       }
 
       // --- Decrement countdown ---
@@ -166,19 +171,11 @@ export class MailTimer {
    * Deliberately avoids picking the same as the current target
    * to keep things interesting. Clamped to [0.5, 2.0].
    */
-  _newTardisSpeed() {
-    // If a pre-computed replayer was provided (Outlook mode), use it.
-    // Otherwise generate randomly (Thunderbird mode).
-    if (this._speedReplayer) {
-      return this._speedReplayer(this._tardisTargetSpeed);
-    }
-    const min = 0.5;
-    const max = 2.0;
-    let candidate;
-    do {
-      candidate = min + Math.random() * (max - min);
-      candidate = Math.round(candidate * 100) / 100;
-    } while (Math.abs(candidate - this._tardisTargetSpeed) < 0.2);
-    return candidate;
+  /**
+   * Returns a random phase duration between 5 and 20 seconds in milliseconds.
+   * Used for both the normal-speed phase and the burst phase.
+   */
+  _tardisRandomPhaseMs() {
+    return 5000 + Math.random() * 15000;
   }
 }

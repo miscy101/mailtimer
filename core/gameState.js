@@ -127,50 +127,33 @@ export class GameState {
 
   formatLog() {
     const l = this.log;
-    const lines = [
-      '',
-      '════════════════════════════════',
-      'Mailtimer — game log',
-      '════════════════════════════════',
-      '',
-      `Timer mode:        ${l.timerMode}${l.tardisUsed ? ' (TARDIS)' : ''}`,
-      `Time configured:   ${l.secondsConfigured} seconds`,
-      `Send mode:         ${l.sendMode}`,
-      `Started:           ${l.startedAt || '—'}`,
-      `Completed:         ${l.completedAt || '—'}`,
-      `Outcome:           ${l.outcome || '—'}`,
-      '',
+
+    // Use | as separator — works in HTML and plain text email modes alike.
+    // Line breaks can't be relied on when Thunderbird writes an HTML compose
+    // window body back as plain text.
+    const parts = [
+      'Mailtimer game log',
+      `Mode: ${l.timerMode}${l.tardisUsed ? ' (TARDIS)' : ''}`,
+      `Time: ${l.secondsConfigured}s`,
+      `Send mode: ${l.sendMode}`,
+      `Started: ${l.startedAt || '—'}`,
+      `Completed: ${l.completedAt || '—'}`,
+      `Outcome: ${l.outcome || '—'}`,
     ];
 
-    // ── Player actions ──
-    const actions = [];
-    if (l.blindfoldedStart)  actions.push('Started blindfolded');
-    if (l.blindfoldedMidRun) actions.push('Applied blindfold mid-run');
+    if (l.blindfoldedStart)  parts.push('Blindfolded from start');
+    if (l.blindfoldedMidRun) parts.push('Blindfolded mid-run');
     if (l.peekCount > 0) {
-      const limitNote = l.peekLimit !== null ? ` (limit was ${l.peekLimit})` : '';
-      actions.push(`Peeked at timer: ${l.peekCount} time${l.peekCount > 1 ? 's' : ''}${limitNote}`);
+      const limitNote = l.peekLimit !== null ? ` (limit: ${l.peekLimit})` : '';
+      parts.push(`Peeks: ${l.peekCount}${limitNote}`);
     }
-    if (l.pauseCount > 0)    actions.push(`Paused timer: ${l.pauseCount} time${l.pauseCount > 1 ? 's' : ''}`);
-    if (l.spinOutcome)       actions.push(`Spin the wheel result: ${l.spinOutcome}`);
-    if (l.rouletteTriggered) actions.push('Roulette fired');
-    if (actions.length) {
-      lines.push('── Player actions ──');
-      actions.forEach(a => lines.push(`  ${a}`));
-      lines.push('');
-    }
+    if (l.pauseCount > 0)    parts.push(`Pauses: ${l.pauseCount}`);
+    if (l.spinOutcome)       parts.push(`Spin: ${l.spinOutcome}`);
+    if (l.rouletteTriggered) parts.push('Roulette fired');
+    if (l.brokenUIUsed)      parts.push('Bricked UI active');
+    if (l.rosettaStoneUsed)  parts.push('Rosetta Stone active');
 
-    // ── Chaos modes ──
-    const chaos = [];
-    if (l.brokenUIUsed)     chaos.push('Bricked UI was active');
-    if (l.rosettaStoneUsed) chaos.push('Rosetta Stone was active');
-    if (chaos.length) {
-      lines.push('── Chaos modes ──');
-      chaos.forEach(c => lines.push(`  ${c}`));
-      lines.push('');
-    }
-
-    lines.push('════════════════════════════════');
-    return lines.join('\n');
+    return ' | ' + parts.join(' | ');
   }
 
   // ─── Private ──────────────────────────────────────────────────────────────

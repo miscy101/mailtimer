@@ -62,6 +62,7 @@ const btnCancel         = $('btn-cancel');
 const btnPeek           = $('btn-peek');
 const btnBlindfoldLive  = $('btn-blindfold-live');
 const btnRouletteLive   = $('btn-roulette-live');
+const btnSendNowLive    = $('btn-send-now-live');
 const runModeLabel      = $('run-mode-label');
 const runFlags          = $('run-flags');
 
@@ -146,6 +147,13 @@ function updateStartButton() {
   const hasTo      = cachedToAddress.includes('@');
   btnStart.disabled = !(hasConsent && hasTo);
   warnNoTo.classList.toggle('hidden', !(hasConsent && !hasTo));
+
+  // Highlight consent block in red when Start is blocked solely because
+  // consent hasn't been ticked — gives the player a clear visual cue
+  const consentBlock = document.querySelector('.consent-block');
+  if (consentBlock) {
+    consentBlock.classList.toggle('consent-required', !hasConsent);
+  }
 }
 
 consentCheckbox.addEventListener('change', updateStartButton);
@@ -235,9 +243,13 @@ function startRunningScreen() {
     btnCancel.textContent        = applySubstitution('Cancel',    rosettaTable);
     btnBlindfoldLive.textContent = applySubstitution('Blindfold', rosettaTable);
     btnRouletteLive.textContent  = applySubstitution('Roulette',  rosettaTable);
+    btnSendNowLive.textContent   = applySubstitution('Send now',  rosettaTable);
     $('roulette-live-desc').textContent =
-      applySubstitution("A chance it'll send now.", rosettaTable);
+      applySubstitution("(A chance it'll send now.)", rosettaTable);
   }
+
+  // Send now is always visible during the countdown
+  btnSendNowLive.classList.remove('hidden');
 
   populateRunFlags(rosettaTable);
 
@@ -360,7 +372,26 @@ btnPeek.addEventListener('click', () => {
   gameState.recordPeek();
   isPeeking = true;
   clearTimeout(peekTimeout);
-  peekTimeout = setTimeout(() => { isPeeking = false; }, 1000);
+  peekTimeout = setTimeout(() => { isPeeking = false; }, 250);
+});
+
+// Send now — fires the send immediately, same as timer reaching zero
+btnSendNowLive.addEventListener('click', async () => {
+  if (!timer || !gameState) return;
+  // Stop the timer cleanly without triggering onCancel
+  clearInterval(timer._intervalId);
+  timer._intervalId = null;
+  // Honour Spin the Wheel even on manual send
+  if (gameState.spinTheWheel) {
+    const willSend = spinTheWheel();
+    gameState.recordSpinOutcome(willSend);
+    if (!willSend) {
+      showOutcome('spin-blocked');
+      return;
+    }
+  }
+  clearTimeout(brickTimeout);
+  await doSend('timer');
 });
 
 btnBlindfoldLive.addEventListener('click', () => {
@@ -435,17 +466,17 @@ function showOutcome(type) {
     'sent': {
       icon:   '✉',
       title:  'Hahaha!',
-      detail: `Oops, looks like you lost the game...\nYour information has been sent!\n\n${statsLine}`,
+      detail: `Oops, looks like the timer ran out.\nDid you lose the game? Has your information been sent?\n\n${statsLine}`,
     },
     'sent-fake': {
       icon:   '✉',
       title:  'Hahaha!',
-      detail: 'Oops, looks like you lost the game...\nYour information has been sent!\n\n(It was sent the moment you clicked Start. You followed through.)',
+      detail: 'Oops, looks like the timer ran out.\nDid you lose the game? Has your information been sent?\n\n(It was sent the moment you clicked Start. You followed through.)',
     },
     'roulette': {
       icon:   '🎰',
       title:  'Hahaha!',
-      detail: 'Oops, looks like you lost the game...\nYour information has been sent!\n\n(The roulette fired on Start.)',
+      detail: `Oops, looks like the timer ran out.\nDid you lose the game? Has your information been sent?\n\n(Roulette fired on Start.)\n\n${statsLine}`,
     },
     'spin-blocked': {
       icon:   '🎲',

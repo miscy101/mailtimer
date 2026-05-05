@@ -66,8 +66,10 @@ export function buttonStates(sessionState) {
   } = sessionState;
 
   const inLastMinute  = secondsLeft <= 60;
-  const cancelVisible = !lastMinute || inLastMinute;
-  const pauseEnabled  = !brokenUI && (!lastMinute || inLastMinute);
+  // In Last Minute mode both buttons are visible but disabled until the final 60s.
+  // Neither is hidden — the player can see them, they just won't respond.
+  const cancelEnabled = (!lastMinute || inLastMinute) && !brokenUI;
+  const pauseEnabled  = (!lastMinute || inLastMinute) && !brokenUI;
 
   // Peek is visible when blindfolded but disabled when peeks are exhausted
   const peekVisible = running && blindfolded;
@@ -88,8 +90,8 @@ export function buttonStates(sessionState) {
       label:   paused ? 'Resume' : 'Pause',
     },
     cancel: {
-      visible: running && cancelVisible,
-      enabled: !brokenUI,
+      visible: running,
+      enabled: cancelEnabled,
       label:   'Cancel',
     },
     blindfold: {

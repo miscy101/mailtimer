@@ -2,6 +2,28 @@
 
 ---
 
+## 1.1.0
+
+### New features
+
+- **Send now** — a button on the countdown screen that fires the send immediately, as if the timer had reached zero naturally. Spin the Wheel still applies if active. In Rosetta Stone mode the label is scrambled along with everything else.
+
+### Changes
+
+- **Peek duration** reduced from 1 second to 0.25 seconds. A flash rather than a look.
+- **TARDIS mode reworked** — the timer no longer drifts smoothly between random speeds. Instead it runs at normal speed (1×) and periodically bursts to a higher speed. The first burst is 1.5×, the second 2×, the third 2.5×, and so on — escalating each time. Each phase (normal or burst) lasts a random 5 to 20 seconds.
+- **Last Minute** — both Cancel and Pause are now visible but greyed out until the final 60 seconds, rather than Cancel being hidden and Pause being disabled. Consistent behaviour for both buttons.
+- **Rosetta Stone** — colour coding removed from all buttons on the countdown screen. Cancel and Roulette no longer have distinctive colours that could identify them.
+- **Consent highlight** — if the Start button is clicked before the consent checkbox is ticked, the consent label and checkbox turn red as a visual prompt.
+- **Outcome screen text** made deliberately uncertain: "Did you lose the game? Has your information been sent?" — reflecting that the player may have dismissed the send dialogue.
+- **Roulette description** on the countdown screen now appears in brackets.
+
+### Fixes
+
+- **Game log and brave metadata** now append reliably to the email body using `|` separators, which work regardless of whether Thunderbird sends in HTML or plain text mode. Example output: `THIS IS A TEST | Mailtimer game log | Mode: fixed | Time: 600s | ...`
+
+---
+
 ## 1.0.0 — Initial release
 
 First public release of Mailtimer for Thunderbird.

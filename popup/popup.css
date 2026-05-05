@@ -208,6 +208,18 @@ body {
   line-height: 1.4;
 }
 
+/* Red highlight when consent is needed before starting */
+.consent-required #consent-text {
+  color: #c03030;
+}
+.consent-required input[type="checkbox"] {
+  outline: 2px solid #c03030;
+  outline-offset: 1px;
+}
+.consent-required .option-name {
+  color: #c03030;
+}
+
 /* ── Peek limit row ───────────────────────────────────────────────────── */
 .peek-limit-row {
   margin-top: 4px;
@@ -273,6 +285,7 @@ body {
 .roulette-desc {
   margin-top: 2px;
   padding: 0 2px;
+  text-align: center;
 }
 
 /* ── Running screen ──────────────────────────────────────────────────── */
