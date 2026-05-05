@@ -244,8 +244,13 @@ function openTimerDialog() {
       encodeURIComponent(JSON.stringify(gameState._tardisScheduleForDialog)));
   }
 
-  const dialogUrl = window.location.origin
-    + '/outlook/dialog/dialog.html?' + params.toString();
+  // Build the dialog URL relative to the current page's location.
+  // window.location.origin alone gives https://miscy101.github.io — missing
+  // the /mailtimer/ repository prefix that GitHub Pages requires.
+  // We derive the base path from the current URL instead, stripping everything
+  // from /outlook/ onward to get https://miscy101.github.io/mailtimer
+  const basePath = window.location.href.split('/outlook/')[0];
+  const dialogUrl = basePath + '/outlook/dialog/dialog.html?' + params.toString();
 
   Office.context.ui.displayDialogAsync(dialogUrl,
     { height: 55, width: 38, displayInIframe: false },
