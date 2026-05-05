@@ -3,7 +3,6 @@
   xmlns="http://schemas.microsoft.com/office/appforoffice/1.1"
   xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
   xmlns:bt="http://schemas.microsoft.com/office/officeappbasictypes/1.0"
-  xmlns:mailappor="http://schemas.microsoft.com/office/mailappversionoverrides/1.0"
   xsi:type="MailApp">
 
   <!-- Identity -->
@@ -13,38 +12,47 @@
   <DefaultLocale>en-US</DefaultLocale>
   <DisplayName DefaultValue="Mailtimer" />
   <Description DefaultValue="A countdown timer that sends your email when it reaches zero." />
-
-  <!-- Icons -->
   <IconUrl DefaultValue="https://miscy101.github.io/mailtimer/icons/icon-32.png" />
   <HighResolutionIconUrl DefaultValue="https://miscy101.github.io/mailtimer/icons/icon-64.png" />
   <SupportUrl DefaultValue="https://miscy101.github.io/mailtimer" />
 
-  <!-- AppDomains must appear before Hosts and Permissions in the schema -->
+  <!-- AppDomains -->
   <AppDomains>
     <AppDomain>https://miscy101.github.io</AppDomain>
   </AppDomains>
 
-  <!-- Legacy Hosts element required by schema before Permissions -->
+  <!-- Hosts (legacy, required by schema) -->
   <Hosts>
     <Host Name="Mailbox" />
   </Hosts>
 
-  <!-- Legacy Requirements element required by schema -->
+  <!-- Requirements (legacy, required by schema) -->
   <Requirements>
     <Sets DefaultMinVersion="1.3">
       <Set Name="Mailbox" />
     </Sets>
   </Requirements>
 
-  <!-- Permissions: ReadWriteMailbox needed to read compose fields and send -->
+  <!-- FormSettings: required for validation even though VersionOverrides takes over.
+       Points to taskpane.html as the legacy source location. -->
+  <FormSettings>
+    <Form xsi:type="ItemEdit">
+      <DesktopSettings>
+        <SourceLocation DefaultValue="https://miscy101.github.io/mailtimer/outlook/taskpane/taskpane.html" />
+      </DesktopSettings>
+    </Form>
+  </FormSettings>
+
+  <!-- Permissions -->
   <Permissions>ReadWriteMailbox</Permissions>
 
-  <!-- Activation rule: compose mode only -->
+  <!-- Rule: required for validation, ignored when VersionOverrides is present -->
   <Rule xsi:type="RuleCollection" Mode="Or">
     <Rule xsi:type="ItemIs" ItemType="Message" FormType="Edit" />
   </Rule>
 
-  <!-- VersionOverrides: defines the modern toolbar button and task pane -->
+  <!-- VersionOverrides: defines the modern toolbar button and task pane.
+       This is what actually runs in supported versions of Outlook. -->
   <VersionOverrides xmlns="http://schemas.microsoft.com/office/mailappversionoverrides"
                     xsi:type="VersionOverridesV1_0">
     <Requirements>
@@ -55,7 +63,6 @@
 
     <Hosts>
       <Host xsi:type="MailHost">
-
         <DesktopFormFactor>
           <FunctionFile resid="Commands.Url" />
 
@@ -88,7 +95,6 @@
             </OfficeTab>
           </ExtensionPoint>
         </DesktopFormFactor>
-
       </Host>
     </Hosts>
 
