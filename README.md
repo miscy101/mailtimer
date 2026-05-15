@@ -1,6 +1,6 @@
 # Mailtimer
 
-**Version 1.1.0**
+**Version 1.2.0**
 
 A countdown timer that sends your email when it reaches zero.
 
@@ -34,11 +34,15 @@ A full player's guide is in `USER_GUIDE.md`.
 
 **Timer length** — Fixed seconds (default 600), or a random value between a min and max you set.
 
-**Modifiers** — TARDIS (speed drifts unpredictably), Spin the Wheel (50/50 chance at zero), Last Minute (cancel and pause locked until the final 60 seconds).
+**Modifiers** — TARDIS (speed bursts that escalate over time), Spin the Wheel (50/50 chance at zero), Last Minute (cancel and pause locked until the final 60 seconds).
 
-**Chaos** — Roulette (chance of sending immediately on Start, or any time during the countdown), Bricked UI (controls may stop working mid-run), Rosetta Stone (labels and digits scrambled on Start), Commitment Issues (sends immediately, shows a fake countdown).
+**Chaos** — Roulette (hitting Start gets a bit more dangerous, and a button appears during the countdown for more temptation), Unstable UI (controls may stop responding mid-run), Babel (labels and digits scrambled on Start), Commitment Issues (sends immediately, shows a fake countdown).
 
-**Blindfold** — Hides the countdown. Set a peek limit to allow only a fixed number of looks. Run out and you're flying blind for good.
+**Blindfold** — Hides the countdown. Set a peek limit to allow only a fixed number of glimpses. Run out and you're flying blind for good.
+
+**Send now** — A button on the countdown screen that fires the send immediately, as if the timer had reached zero.
+
+**Prove you're playing?** — Three options controlling what gets appended to the email: nothing, a game data log, or a game data log plus sender system information.
 
 ---
 

@@ -45,24 +45,15 @@
           </div>
           <label class="option-row">
             <input type="checkbox" id="toggle-tardis" />
-            <span>
-              <span class="option-name">TARDIS</span>
-              <span class="option-desc">wibbly wobbly... timey... wimey...?</span>
-            </span>
+            <span><span class="option-name">TARDIS</span><span class="option-desc"> — Wibbly wobbly... timey... wimey...?</span></span>
           </label>
           <label class="option-row">
             <input type="checkbox" id="toggle-spin" />
-            <span>
-              <span class="option-name">Spin the wheel</span>
-              <span class="option-desc">When the timer reaches zero, it might send... or it might not.</span>
-            </span>
+            <span><span class="option-name">Spin the wheel</span><span class="option-desc"> — When the timer reaches zero, it might send... or it might not.</span></span>
           </label>
           <label class="option-row">
             <input type="checkbox" id="toggle-lastminute" />
-            <span>
-              <span class="option-name">Last minute</span>
-              <span class="option-desc">You can't change your mind until the last minute. Pairs dangerously well with 'Blindfold'...</span>
-            </span>
+            <span><span class="option-name">Last minute</span><span class="option-desc"> — You can't back out until the very last minute.</span></span>
           </label>
         </section>
 
@@ -70,46 +61,41 @@
         <section class="group chaos-group">
           <div class="group-header">
             <span class="group-title">Chaos</span>
-            <span class="chaos-badge">!</span>
           </div>
           <label class="option-row">
             <input type="checkbox" id="toggle-roulette" />
-            <span>
-              <span class="option-name">Roulette</span>
-              <span class="option-desc">A chance of sending immediately on Start</span>
-            </span>
+            <span><span class="option-name">Roulette</span><span class="option-desc"> — Hitting Start gets a bit more dangerous</span></span>
           </label>
           <label class="option-row">
             <input type="checkbox" id="toggle-brokenui" />
-            <span>
-              <span class="option-name">Bricked UI</span>
-              <span class="option-desc">The UI might become unstable</span>
-            </span>
+            <span><span class="option-name">Unstable UI</span><span class="option-desc"> — Compiler error detected</span></span>
           </label>
           <label class="option-row">
             <input type="checkbox" id="toggle-rosetta" />
-            <span>
-              <span class="option-name">Rosetta stone</span>
-              <span class="option-desc">Labels and digits get scrambled</span>
-            </span>
+            <span><span class="option-name">Babel</span><span class="option-desc"> — ...there confound their language, that they may not understand...</span></span>
           </label>
           <label class="option-row">
             <input type="checkbox" id="toggle-commitment" />
-            <span>
-              <span class="option-name">Commitment issues</span>
-              <span class="option-desc">This mode is for people who want to send, and who consent to sending, but find they get cold feet. We'll help you follow through, guaranteed.</span>
-            </span>
+            <span><span class="option-name">Commitment issues</span><span class="option-desc"> — You'll find you've followed through, guaranteed.</span></span>
           </label>
         </section>
 
-        <!-- Brave metadata -->
+        <!-- Metadata options -->
         <section class="group">
-          <label class="option-row brave-row">
-            <input type="checkbox" id="toggle-brave" />
-            <span>
-              <span class="option-name">Include a little extra in this message...</span>
-              <span class="option-desc">...if you're feeling brave</span>
-            </span>
+          <div class="group-header">
+            <span class="group-title">Prove you're playing?</span>
+          </div>
+          <label class="option-row">
+            <input type="radio" name="metadata-mode" id="meta-none" value="none" />
+            <span><span class="option-name">Nothing</span><span class="option-desc"> — I'm just risking it for fun</span></span>
+          </label>
+          <label class="option-row">
+            <input type="radio" name="metadata-mode" id="meta-log" value="log" checked />
+            <span><span class="option-name">Game data log</span><span class="option-desc"> — I want to show I'm playing by the rules</span></span>
+          </label>
+          <label class="option-row">
+            <input type="radio" name="metadata-mode" id="meta-extra" value="extra" />
+            <span><span class="option-name">A little risky extra</span><span class="option-desc"> — If you're feeling brave</span></span>
           </label>
         </section>
 
@@ -122,18 +108,12 @@
         <div class="blindfold-block">
           <label class="option-row">
             <input type="checkbox" id="toggle-blindfold" />
-            <span>
-              <span class="option-name">Blindfold</span>
-              <span class="option-desc">Hides the countdown. Cannot be removed once started.</span>
-            </span>
+            <span><span class="option-name">Blindfold</span><span class="option-desc"> — Hides the countdown.</span></span>
           </label>
           <div id="peek-limit-block" class="peek-limit-row hidden">
             <label class="option-row">
               <input type="checkbox" id="toggle-peek-limit" />
-              <span>
-                <span class="option-name">Limit my peeks to:</span>
-                <span class="option-desc">Run out and you're flying blind for good.</span>
-              </span>
+              <span><span class="option-name">Limit my peeks to:</span><span class="option-desc"> — Run out and you're flying blind for good.</span></span>
             </label>
             <div id="peek-limit-input-row" class="timer-input-row hidden">
               <input type="number" id="input-peek-limit" min="1" max="99" value="3" />
@@ -145,10 +125,7 @@
         <div class="consent-block">
           <label class="option-row">
             <input type="checkbox" id="consent-checkbox" />
-            <span>
-              <span class="option-name" style="font-size:11px;font-weight:600;text-transform:uppercase;letter-spacing:0.06em;color:#888;">Consent</span>
-              <span id="consent-text" class="option-desc">I understand this will send an email on my behalf. I consent to the recipient receiving and using this information at their discretion.</span>
-            </span>
+            <span><span class="option-name" style="color:#c03030;">Consent</span><span id="consent-text" class="option-desc"> — I understand this will send an email on my behalf. I consent to the recipient receiving and using this information at their discretion.</span></span>
           </label>
         </div>
 

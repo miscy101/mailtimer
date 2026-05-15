@@ -46,6 +46,9 @@ export class GameState {
     // ── Timer settings ────────────────────────────────────────────────────
     this.timerMode  = options.timerMode || 'fixed';
     this.rawSeconds = this._resolveSeconds(options);
+    // Store range for random mode so the log can report the parameters
+    this.randomMin  = options.randomMin || null;
+    this.randomMax  = options.randomMax || null;
 
     // ── Send outcome mode ─────────────────────────────────────────────────
     this.sendMode = options.sendMode || 'standard';
@@ -58,7 +61,9 @@ export class GameState {
     this.roulette      = options.roulette      || false;
     this.brokenUI      = options.brokenUI      || false;
     this.rosettaStone  = options.rosettaStone  || false;
-    this.braveMetadata = options.braveMetadata || false;
+    // metadataMode: 'none' | 'log' | 'extra'
+    // Controls what gets appended to the email body on send.
+    this.metadataMode  = options.metadataMode  || 'log';
 
     // Peek limit: null = unlimited, number = max peeks allowed
     this.peekLimit     = options.peekLimit     ?? null;
@@ -80,7 +85,8 @@ export class GameState {
       rosettaStoneUsed:  this.rosettaStone,
       spinOutcome:       null,    // 'sent' | 'blocked'
       rouletteTriggered: false,
-      braveMetadata:     null,    // populated at send time if braveMetadata is on
+      braveMetadata:     null,    // populated at send time if metadataMode is extra
+      consentText:       null,    // populated at Start if metadataMode is log or extra
       outcome:           null,    // 'sent' | 'cancelled'
       startedAt:         null,
       completedAt:       null,
@@ -127,31 +133,85 @@ export class GameState {
 
   formatLog() {
     const l = this.log;
+    const parts = ['Mailtimer game log'];
 
-    // Use | as separator — works in HTML and plain text email modes alike.
-    // Line breaks can't be relied on when Thunderbird writes an HTML compose
-    // window body back as plain text.
-    const parts = [
-      'Mailtimer game log',
-      `Mode: ${l.timerMode}${l.tardisUsed ? ' (TARDIS)' : ''}`,
-      `Time: ${l.secondsConfigured}s`,
-      `Send mode: ${l.sendMode}`,
-      `Started: ${l.startedAt || '—'}`,
-      `Completed: ${l.completedAt || '—'}`,
-      `Outcome: ${l.outcome || '—'}`,
-    ];
-
-    if (l.blindfoldedStart)  parts.push('Blindfolded from start');
-    if (l.blindfoldedMidRun) parts.push('Blindfolded mid-run');
-    if (l.peekCount > 0) {
-      const limitNote = l.peekLimit !== null ? ` (limit: ${l.peekLimit})` : '';
-      parts.push(`Peeks: ${l.peekCount}${limitNote}`);
+    // ── Timer description ──
+    if (this.timerMode === 'random') {
+      parts.push(
+        `This Mailtimer game was played with a random countdown timer of ${this.rawSeconds} seconds` +
+        (this.randomMin && this.randomMax
+          ? ` (parameters set by the user: between ${this.randomMin} and ${this.randomMax} seconds)`
+          : '')
+      );
+    } else {
+      parts.push(
+        `This Mailtimer game was played with a user set countdown time of ${this.rawSeconds} seconds`
+      );
     }
-    if (l.pauseCount > 0)    parts.push(`Pauses: ${l.pauseCount}`);
-    if (l.spinOutcome)       parts.push(`Spin: ${l.spinOutcome}`);
-    if (l.rouletteTriggered) parts.push('Roulette fired');
-    if (l.brokenUIUsed)      parts.push('Bricked UI active');
-    if (l.rosettaStoneUsed)  parts.push('Rosetta Stone active');
+
+    if (l.tardisUsed) {
+      const wallSecs = l.startedAt && l.completedAt
+        ? Math.round((new Date(l.completedAt) - new Date(l.startedAt)) / 1000)
+        : null;
+      parts.push(
+        `The actual total countdown time lasted for ${wallSecs !== null ? wallSecs : '?'} seconds` +
+        ' due to a fold in space-time — TARDIS mode was active'
+      );
+    }
+
+    // ── Active modifiers ──
+    const modifiers = [];
+    if (l.spinOutcome !== null) modifiers.push('Spin the wheel');
+    if (this.lastMinute)        modifiers.push('Last minute');
+    if (l.rouletteTriggered)    modifiers.push('Roulette');
+    if (l.brokenUIUsed)         modifiers.push('Unstable UI');
+    if (l.rosettaStoneUsed)     modifiers.push('Babel');
+    if (this.sendMode === 'commitmentIssues') modifiers.push('Commitment issues');
+
+    if (modifiers.length === 0) {
+      parts.push('They selected no modifiers');
+    } else if (modifiers.length === 1) {
+      parts.push(`They selected the following modifier: ${modifiers[0]}`);
+    } else {
+      const last = modifiers.pop();
+      parts.push(`They selected the following modifiers: ${modifiers.join(', ')} and ${last}`);
+    }
+
+    // ── Spin outcome ──
+    if (l.spinOutcome) {
+      parts.push(`Spin the wheel result: ${l.spinOutcome}`);
+    }
+
+    // ── Pauses ──
+    if (l.pauseCount > 0) {
+      parts.push(`They paused the timer ${l.pauseCount} time${l.pauseCount > 1 ? 's' : ''}`);
+    }
+
+    // ── Blindfold ──
+    const wasBlindfolded = l.blindfoldedStart || l.blindfoldedMidRun;
+    if (!wasBlindfolded) {
+      parts.push('They did not use the Blindfold');
+    } else {
+      const how = l.blindfoldedStart ? 'from the start' : 'mid-run';
+      const limitNote = l.peekLimit !== null
+        ? `They had ${l.peekLimit} peek${l.peekLimit !== 1 ? 's' : ''} available.`
+        : 'They had unlimited peeks available.';
+      const usedNote = l.peekCount > 0
+        ? `They used ${l.peekCount} peek${l.peekCount !== 1 ? 's' : ''}.`
+        : 'They did not use any peeks.';
+      parts.push(`They used the Blindfold (applied ${how}). ${limitNote} ${usedNote}`.trim());
+    }
+
+    // ── Consent ──
+    if (l.consentText) {
+      parts.push(`As a part of this game, they consented to the following: ${l.consentText}`);
+    }
+
+    parts.push(
+      'This Mailtimer is an add-on for Thunderbird. ' +
+      'The source code, install files and documentation are available online at ' +
+      'https://github.com/miscy101/mailtimer'
+    );
 
     return ' | ' + parts.join(' | ');
   }

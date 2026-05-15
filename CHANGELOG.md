@@ -2,6 +2,32 @@
 
 ---
 
+## 1.2.0
+
+### Renamed modes
+
+- **Bricked UI** renamed to **Unstable UI** — description changed to "Compiler error detected"
+- **Rosetta Stone** renamed to **Babel** — description changed to the Genesis quotation
+
+### New features
+
+- **Metadata radio buttons** — the single "Include a little extra" checkbox is replaced by a three-option radio group labelled "Prove you're playing?": *Nothing* (email sends unmodified), *Game data log* (game log appended), *A little risky extra* (game log plus sender system info). Game data log is selected by default.
+- **Consent declaration in email** — when the metadata mode is Game data log or A little risky extra, the consent text the sender agreed to is captured at Start and included in the appended game log.
+- **HTML email formatting** — the game log and sender system info are now sent as a styled HTML table (with a plain text pipe-separated fallback). Both versions are passed to Thunderbird simultaneously; Thunderbird picks the appropriate one based on the compose window's mode.
+
+### Visual changes
+
+- **Inline option layout** — option names and descriptions now appear on the same line separated by " — ", reducing the height of the setup panel.
+- **Bold labels** — option names are bold and dark; descriptions remain light grey. Section titles (Timer length, Modifiers, Chaos, Prove you're playing?) are bold and dark.
+- **Consent label** — now styled the same as other labels but in red, with a " — " separator before the description text.
+- **Chaos section badge** — the orange "!" badge removed from the Chaos section header.
+
+### Documentation
+
+- DEV_GUIDE.md and README.md updated to reflect all renamed modes, changed mechanics (TARDIS burst escalation, Last Minute button behaviour, peek timing), new features (Send now button, peek limit, metadata mode, consent declaration), and corrected code samples throughout.
+
+---
+
 ## 1.1.0
 
 ### New features

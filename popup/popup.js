@@ -42,7 +42,7 @@ const toggleRoulette   = $('toggle-roulette');
 const toggleBrokenui   = $('toggle-brokenui');
 const toggleRosetta    = $('toggle-rosetta');
 const toggleCommitment = $('toggle-commitment');
-const toggleBrave      = $('toggle-brave');
+const toggleBrave      = null; // replaced by radio group — use getMetadataMode()
 const toggleBlindfold  = $('toggle-blindfold');
 const togglePeekLimit  = $('toggle-peek-limit');
 const inputPeekLimit   = $('input-peek-limit');
@@ -72,7 +72,12 @@ const outcomeTitle  = $('outcome-title');
 const outcomeDetail = $('outcome-detail');
 const btnReset      = $('btn-reset');
 
-// ── Resolve compose tab ID from URL param ─────────────────────────────────────
+// ── Metadata mode helper ──────────────────────────────────────────────────────
+
+function getMetadataMode() {
+  const checked = document.querySelector('input[name="metadata-mode"]:checked');
+  return checked ? checked.value : 'log';
+}
 
 const urlParams    = new URLSearchParams(window.location.search);
 const composeTabId = urlParams.has('composeTabId')
@@ -86,6 +91,7 @@ let timer        = null;
 let brickTimeout = null;
 let peekTimeout  = null;
 let isPeeking    = false;
+let rosettaTable = null;  // set in startRunningScreen, read by click handlers
 
 // ── Screen switching ──────────────────────────────────────────────────────────
 
@@ -203,13 +209,18 @@ btnStart.addEventListener('click', async () => {
     roulette:      toggleRoulette.checked,
     brokenUI:      toggleBrokenui.checked,
     rosettaStone:  toggleRosetta.checked,
-    braveMetadata: toggleBrave.checked,
+    metadataMode:  getMetadataMode(),
     peekLimit:     (toggleBlindfold.checked && togglePeekLimit.checked)
                      ? Math.max(1, parseInt(inputPeekLimit.value) || 3)
                      : null,
   });
 
   gameState.begin();
+
+  // Record consent text if metadata will be included
+  if (gameState.metadataMode !== 'none') {
+    gameState.log.consentText = $('consent-text').textContent.trim();
+  }
 
   // Roulette: 10% chance of instant send before timer even starts
   if (gameState.roulette && Math.random() < 0.1) {
@@ -236,7 +247,7 @@ function startRunningScreen() {
   let brokenUIActive = false;
 
   // Rosetta Stone: build substitution table once, apply to all labels immediately
-  const rosettaTable = gameState.rosettaStone ? buildRosettaTable() : null;
+  rosettaTable = gameState.rosettaStone ? buildRosettaTable() : null;
 
   if (rosettaTable) {
     btnPause.textContent         = applySubstitution('Pause',     rosettaTable);
@@ -338,8 +349,8 @@ function populateRunFlags(rosettaTable) {
   if (gameState.spinTheWheel)           labels.push('Spin the wheel');
   if (gameState.lastMinute)             labels.push('Last minute');
   if (gameState.roulette)               labels.push('Roulette');
-  if (gameState.brokenUI)               labels.push('Bricked UI');
-  if (gameState.rosettaStone)           labels.push('Rosetta stone');
+  if (gameState.brokenUI)               labels.push('Unstable UI');
+  if (gameState.rosettaStone)           labels.push('Babel');
   if (gameState.sendMode === 'commitmentIssues') labels.push('Commitment issues');
   if (gameState.blindfolded)            labels.push('Blindfolded');
 
@@ -356,9 +367,15 @@ btnPause.addEventListener('click', () => {
   if (!timer || gameState._brokenUIActive) return;
   if (timer.isPaused) {
     timer.resume();
+    btnPause.textContent = rosettaTable
+      ? applySubstitution('Pause', rosettaTable)
+      : 'Pause';
   } else {
     timer.pause();
     gameState.recordPause();
+    btnPause.textContent = rosettaTable
+      ? applySubstitution('Un-pause', rosettaTable)
+      : 'Un-pause';
   }
 });
 
@@ -423,7 +440,7 @@ btnRouletteLive.addEventListener('click', async () => {
 // ── Send ──────────────────────────────────────────────────────────────────────
 
 async function doSend(trigger) {
-  const braveMetadata = gameState.braveMetadata ? gatherBraveMetadata() : null;
+  const braveMetadata = gameState.metadataMode === 'extra' ? gatherBraveMetadata() : null;
   if (braveMetadata) gameState.log.braveMetadata = braveMetadata;
 
   gameState.recordSend();
@@ -436,10 +453,14 @@ async function doSend(trigger) {
         ? `Mailtimer Game: ${email.subject}`
         : 'Mailtimer Game';
 
+      // Pass both HTML body and plain text body.
+      // Thunderbird picks the right one based on the compose window's mode.
+      // For 'none' mode both will just be the original message unchanged.
       await browser.compose.setComposeDetails(composeTabId, {
-        to:      [email.to],
+        to:            [email.to],
         subject,
-        body:    email.body,
+        body:          email.body,
+        plainTextBody: email.plainTextBody,
       });
       await browser.compose.sendMessage(composeTabId);
 
@@ -516,15 +537,12 @@ function gatherBraveMetadata() {
   const locale = navigator.language || 'unknown';
 
   return {
-    'sent-at':         now.toISOString(),
-    'local-time':      now.toLocaleString(locale, { timeZoneName: 'long' }),
-    'timezone':        tz,
-    'region-guess':    guessRegionFromTZ(tz),
-    'locale':          locale,
-    'platform':        navigator.platform || 'unknown',
-    'elapsed-seconds': gameState.log.startedAt
-      ? Math.round((Date.now() - new Date(gameState.log.startedAt)) / 1000)
-      : '?',
+    'sent-at':      now.toISOString(),
+    'local-time':   now.toLocaleString(locale, { timeZoneName: 'long' }),
+    'timezone':     tz,
+    'region-guess': guessRegionFromTZ(tz),
+    'locale':       locale,
+    'platform':     navigator.platform || 'unknown',
   };
 }
 
@@ -546,6 +564,8 @@ async function getComposeDetails() {
   if (typeof browser !== 'undefined' && browser.compose && composeTabId !== null) {
     try {
       const details = await browser.compose.getComposeDetails(composeTabId);
+      // Use plainTextBody for gameState.body — it's what gets used in the
+      // plain text fallback and as the base for HTML escaping in buildEmail.
       return {
         to:      details.to?.[0] || '',
         subject: details.subject || '',

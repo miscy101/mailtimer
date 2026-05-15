@@ -18,7 +18,7 @@ core/
   timer.js              — pure countdown logic, no UI or email awareness
   gameState.js          — session data: settings, live log, email payload
   emailData.js          — assembles the final email object and game log text
-  ui.js                 — display logic: formatting, button states, Rosetta Stone
+  ui.js                 — display logic: formatting, button states, Babel mode
 popup/
   popup.html            — the UI structure (three screens: setup, running, outcome)
   popup.css             — styling
@@ -47,32 +47,34 @@ No network requests are made by the extension itself. No data is sent to any ser
 3. User configures modes and ticks consent. Start becomes available once a valid `@` address is detected in the To field (polled every 2 seconds).
 4. On Start, `getComposeDetails()` reads the compose fields via `browser.compose.getComposeDetails()`.
 5. A `GameState` is created with all settings locked in. A `MailTimer` starts counting.
-6. When the timer reaches zero (and all relevant mode checks pass), `doSend()` calls `browser.compose.setComposeDetails()` to inject the updated body (which includes the game log), then calls `browser.compose.sendMessage()`.
+6. When the timer reaches zero (and all relevant mode checks pass), `doSend()` calls `browser.compose.setComposeDetails()` to inject the updated body (which includes the game log if `metadataMode` is not `none`), then calls `browser.compose.sendMessage()`.
 7. Thunderbird handles the actual SMTP delivery. The extension has no visibility into whether the email was received.
 
-The subject is prefixed with `Mailtimer Game: ` at send time to prevent Thunderbird's empty-subject prompt from firing.
+The subject is prefixed with `Mailtimer Game: ` at send time to prevent Thunderbird's empty-subject prompt from firing. `setComposeDetails` receives both `body` (HTML) and `plainTextBody` (pipe-separated plain text) simultaneously — Thunderbird picks the appropriate version based on the compose window's mode.
 
 ---
 
-## The chaos modes — how they actually work
+## The modes — how they actually work
 
 **Roulette (Start):** `Math.random() < 0.1` is evaluated once, immediately after `gameState.begin()` is called. If it returns true, `doSend()` is called directly and `startRunningScreen()` is never reached.
 
-**Roulette (during run):** Same check, but clears the timer interval directly before calling `doSend()`. Uses `clearInterval(timer._intervalId)` — technically reaching into a private property, which is a known rough edge.
+**Roulette (during run):** A "Send now" button and a "Roulette" button are both present on the running screen. Roulette runs the same 10% check; "Send now" fires immediately with no randomness. Both stop the timer interval via `clearInterval(timer._intervalId)` — technically reaching into a private property, which is a known rough edge.
 
 **Commitment Issues:** `doSend()` is called immediately after `gameState.begin()`, before `startRunningScreen()`. The `trigger === 'commitment'` guard in `doSend()` prevents it from calling `showOutcome()` — so the function returns early, and the fake countdown starts. On completion, `showOutcome('sent-fake')` is called instead of triggering another send.
 
-**Bricked UI:** A `setTimeout` fires at a random point between 0ms and `rawSeconds * 1000` ms after Start. When it fires, it sets `brokenUIActive = true` and `gameState._brokenUIActive = true`. The `onTick` handler reads `brokenUIActive` and passes it to `buttonStates()`, which sets `enabled: false` on Cancel and Pause. The handlers for those buttons also check `gameState._brokenUIActive` directly and return early if true.
+**Unstable UI:** A `setTimeout` fires at a random point between 0ms and `rawSeconds * 1000` ms after Start. When it fires, it sets `brokenUIActive = true` and `gameState._brokenUIActive = true`. The `onTick` handler reads `brokenUIActive` and passes it to `buttonStates()`, which sets `enabled: false` on Cancel and Pause. The handlers for those buttons also check `gameState._brokenUIActive` directly and return early if true.
 
-**Rosetta Stone:** `buildRosettaTable()` is called once at the start of `startRunningScreen()`. This generates a shuffled bijection of the 62-character alphanumeric pool (`A–Z`, `a–z`, `0–9`). Letters and digits map to other letters or digits — a digit may become a letter. Symbols pass through. The resulting `Map` is stored in a local variable and used for all subsequent display calls via `applySubstitution()`. Labels are applied once immediately; the timer display is re-applied each tick but the same table means the same digit always maps to the same character, so the display is stable rather than flickering.
+**Babel:** `buildRosettaTable()` is called once at the start of `startRunningScreen()`. This generates a shuffled bijection of the 62-character alphanumeric pool (`A–Z`, `a–z`, `0–9`). Letters and digits map to other letters or digits — a digit may become a letter. Symbols pass through. The resulting `Map` is stored in a local variable and used for all subsequent display calls via `applySubstitution()`. Labels are applied once immediately; the timer display is re-applied each tick but the same table means the same digit always maps to the same character, so the display is stable rather than flickering. All button colour classes are stripped so no button is identifiable by colour.
 
-**TARDIS:** Every 100ms tick, the timer's `_speed` multiplier is linearly interpolated toward a target. Every 5 seconds, a new target is chosen at random between 0.5× and 2.0×. The candidate must differ from the current target by at least 0.2 to avoid picking essentially the same speed. The timer's `_secondsLeft` is decremented by `speed × 0.1` each tick rather than a flat 0.1, so the display and the real elapsed time drift together.
+**TARDIS:** The timer starts at normal speed (1×). After a random 5–20 second phase, the first burst fires at 1.5×. After another random 5–20 second phase the timer returns to 1×, then bursts to 2×, then back to 1×, then 2.5×, and so on. Burst speed increases by 0.5× with each cycle — there is no upper limit. The phase duration is randomised independently for each normal and burst segment.
 
 **Spin the Wheel:** `spinTheWheel()` is called in `onComplete`, before `doSend()`. It returns `Math.random() < 0.5`. If false, `showOutcome('spin-blocked')` is called instead of sending.
 
-**Last Minute:** `buttonStates()` computes `inLastMinute = secondsLeft <= 60`. Both Cancel's `visible` and Pause's `enabled` are gated on this when `lastMinute` is true.
+**Last Minute:** `buttonStates()` computes `inLastMinute = secondsLeft <= 60`. Both Cancel and Pause are always visible but their `enabled` state is gated on `inLastMinute` when `lastMinute` is true — both buttons are greyed out and non-functional until the final 60 seconds.
 
-**Blindfold:** A boolean on `gameState.blindfolded`. `timerDisplay()` returns `'???'` when it's true and `peeking` is false. `peeking` is set true for 1000ms by the Take a Peek button, then reset by a `setTimeout`.
+**Blindfold:** A boolean on `gameState.blindfolded`. `timerDisplay()` returns `'???'` when it is true and `peeking` is false. `peeking` is set true for 250ms by the Take a Peek button, then reset by a `setTimeout`. If a peek limit is set, `gameState.peeksRemaining` decrements on each peek and the button is disabled at zero.
+
+**Metadata mode:** A radio button group (`none` / `log` / `extra`) controls what gets appended to the email. `none` sends the email body unchanged. `log` appends a formatted game log table (HTML) or pipe-separated summary (plain text). `extra` adds sender system information on top of the game log. When `log` or `extra` is selected, the consent declaration text is captured at Start time and included in the game log.
 
 ---
 
@@ -84,7 +86,7 @@ The subject is prefixed with `Mailtimer Game: ` at send time to prevent Thunderb
 node --experimental-vm-modules core/test.mjs
 ```
 
-Tests cover: `formatTime`, `timerDisplay`, `buttonStates` (including lastMinute and bricked UI states), `GameState` construction and logging, `validateEmail`, `buildEmail`, `spinTheWheel` (statistical), `MailTimer` countdown, pause, and TARDIS speed bounds.
+Tests cover: `formatTime`, `timerDisplay`, `buttonStates` (including Last Minute and Unstable UI states, peek limit), `GameState` construction and logging, `validateEmail`, `buildEmail`, `spinTheWheel` (statistical), `MailTimer` countdown, pause, and TARDIS burst behaviour.
 
 ---
 
@@ -103,7 +105,7 @@ What follows is each source file reproduced in full, with explanatory comments a
   "name": "Mailtimer",
   "short_name": "Mailtimer",
   "description": "A countdown timer that sends your email when it reaches zero.",
-  "version": "0.1.0",
+  "version": "1.2.0",
   "author": "You",
 
   "browser_specific_settings": {
@@ -155,30 +157,25 @@ const openWindows = new Map();
 
 browser.composeAction.onClicked.addListener(async (composeTab) => {
   const composeTabId = composeTab.id;
-  // DEV: composeTab is the compose window tab Thunderbird passes to the listener.
-  // Its .id is used as a stable key to identify which email this Mailtimer belongs to.
 
   if (openWindows.has(composeTabId)) {
     const existingWindowId = openWindows.get(composeTabId);
     try {
       await browser.windows.update(existingWindowId, { focused: true });
-      // DEV: Just bring the existing window to the front rather than opening another.
       return;
     } catch {
       openWindows.delete(composeTabId);
-      // DEV: The window was closed externally (user closed it). Clean up and open fresh.
     }
   }
 
   const popupUrl = browser.runtime.getURL('popup/popup.html')
     + `?composeTabId=${composeTabId}`;
   // DEV: The compose tab ID is passed as a URL parameter. popup.js reads it on load
-  // via new URLSearchParams(window.location.search). This is how the popup knows
-  // which compose window to read and send through — no guessing, no tab queries.
+  // via new URLSearchParams(window.location.search).
 
   const win = await browser.windows.create({
     url:    popupUrl,
-    type:   'popup',   // DEV: 'popup' = no browser toolbar, but stays open on blur
+    type:   'popup',
     width:  700,
     height: 680,
   });
@@ -189,8 +186,6 @@ browser.composeAction.onClicked.addListener(async (composeTab) => {
     if (windowId === win.id) {
       openWindows.delete(composeTabId);
       browser.windows.onRemoved.removeListener(onRemoved);
-      // DEV: Clean up the Map entry when the window closes, so the next click
-      // opens a fresh window rather than trying to focus a ghost.
     }
   });
 });
@@ -202,13 +197,12 @@ browser.composeAction.onClicked.addListener(async (composeTab) => {
 
 ```javascript
 // DEV: This file is intentionally isolated. It knows nothing about Thunderbird,
-// the DOM, or email. It just counts down. This makes it testable in plain Node.js
-// and reusable if the project ever gains a web-based version.
+// the DOM, or email. It just counts down. This makes it testable in plain Node.js.
 //
 // The timer ticks every 100ms (not 1000ms) for two reasons:
-// 1. TARDIS mode needs smooth speed interpolation, which requires frequent updates.
+// 1. TARDIS mode needs burst transitions to fire on schedule.
 // 2. The display shows whole seconds via Math.ceil(), so sub-second ticks ensure
-//    the display flips at the right moment rather than being a second late.
+//    the display flips at the right moment.
 
 export class MailTimer {
   constructor(options) {
@@ -218,67 +212,57 @@ export class MailTimer {
     this.onComplete   = options.onComplete || (() => {});
     this.onCancel     = options.onCancel   || (() => {});
 
-    this._secondsLeft = options.seconds; // DEV: fractional — decremented smoothly
-    this._speed       = 1.0;             // DEV: 1.0 = real time; <1 = slower; >1 = faster
+    this._secondsLeft = options.seconds;
+    this._speed       = 1.0;
     this._paused      = false;
     this._cancelled   = false;
     this._intervalId  = null;
 
-    // DEV: TARDIS interpolation state. The timer smoothly moves from one speed
-    // to another over a 5-second ramp. These fields track where we are in that ramp.
-    this._tardisTargetSpeed  = 1.0;   // where we're heading
-    this._tardisCurrentSpeed = 1.0;   // where we are right now
-    this._tardisStepAge      = 0;     // ms elapsed in current ramp
-    this._tardisStepDuration = 5000;  // ms per ramp (constant)
-    this._tardisPrevSpeed    = 1.0;   // speed at the start of this ramp
+    // DEV: TARDIS burst state. The timer alternates between normal (1×) and burst
+    // phases. Burst speed starts at 1.5× and increases by 0.5× each cycle.
+    // Each phase lasts a random 5–20 seconds (_tardisRandomPhaseMs).
+    this._tardisBurstCount  = 0;      // how many bursts have fired so far
+    this._tardisInBurst     = false;  // currently in a burst phase?
+    this._tardisPhaseMs     = 0;      // ms elapsed in current phase
+    this._tardisNextPhaseMs = this._tardisRandomPhaseMs();
   }
 
   start() {
-    if (this._intervalId) return; // DEV: idempotent — calling start() twice is safe
+    if (this._intervalId) return;
 
     if (this.mode === 'tardis') {
-      // DEV: Initialise TARDIS state. Pick the first target immediately so the
-      // timer starts drifting from tick 1 rather than sitting at 1.0× for 5 seconds.
-      this._tardisCurrentSpeed = 1.0;
-      this._tardisTargetSpeed  = this._newTardisSpeed();
-      this._tardisPrevSpeed    = 1.0;
-      this._tardisStepAge      = 0;
+      this._tardisInBurst     = false;
+      this._tardisBurstCount  = 0;
+      this._tardisPhaseMs     = 0;
+      this._tardisNextPhaseMs = this._tardisRandomPhaseMs();
+      this._speed             = 1.0;
     }
 
     const TICK_MS = 100;
 
     this._intervalId = setInterval(() => {
       if (this._paused || this._cancelled) return;
-      // DEV: Pausing works by letting the interval keep firing but doing nothing.
-      // This is simpler than clearing and re-creating the interval, and means
-      // the TARDIS ramp age also pauses correctly.
 
       if (this.mode === 'tardis') {
-        this._tardisStepAge += TICK_MS;
+        this._tardisPhaseMs += TICK_MS;
 
-        if (this._tardisStepAge >= this._tardisStepDuration) {
-          // DEV: Ramp complete. Lock in the target as the new baseline and
-          // immediately pick the next target to ramp toward.
-          this._tardisPrevSpeed    = this._tardisTargetSpeed;
-          this._tardisCurrentSpeed = this._tardisTargetSpeed;
-          this._tardisTargetSpeed  = this._newTardisSpeed();
-          this._tardisStepAge      = 0;
-        } else {
-          // DEV: Linear interpolation between prev and target.
-          // t = 0 at the start of the ramp, t = 1 at the end.
-          const t = this._tardisStepAge / this._tardisStepDuration;
-          this._tardisCurrentSpeed =
-            this._tardisPrevSpeed +
-            t * (this._tardisTargetSpeed - this._tardisPrevSpeed);
+        if (this._tardisPhaseMs >= this._tardisNextPhaseMs) {
+          this._tardisPhaseMs = 0;
+          this._tardisNextPhaseMs = this._tardisRandomPhaseMs();
+
+          if (!this._tardisInBurst) {
+            // DEV: Entering burst — speed = 1.5 + 0.5 per previous burst count.
+            this._tardisBurstCount++;
+            this._tardisInBurst = true;
+            this._speed = 1.0 + (this._tardisBurstCount * 0.5);
+          } else {
+            this._tardisInBurst = false;
+            this._speed = 1.0;
+          }
         }
-
-        this._speed = this._tardisCurrentSpeed;
       }
 
       const decrement = this._speed * (TICK_MS / 1000);
-      // DEV: At 1.0× speed: 1.0 × 0.1 = 0.1 seconds per tick = 1 second per 10 ticks.
-      // At 2.0× speed: 2.0 × 0.1 = 0.2 seconds per tick = 2 real seconds per display second.
-      // At 0.5× speed: 0.5 × 0.1 = 0.05 seconds per tick = half real time.
       this._secondsLeft -= decrement;
 
       if (this._secondsLeft <= 0) {
@@ -286,7 +270,7 @@ export class MailTimer {
         clearInterval(this._intervalId);
         this._intervalId = null;
         this.onTick({ secondsLeft: 0, speed: this._speed });
-        this.onComplete(this.log);
+        this.onComplete();
         return;
       }
 
@@ -299,10 +283,7 @@ export class MailTimer {
 
   cancel() {
     this._cancelled = true;
-    if (this._intervalId) {
-      clearInterval(this._intervalId);
-      this._intervalId = null;
-    }
+    if (this._intervalId) { clearInterval(this._intervalId); this._intervalId = null; }
     this.onCancel();
   }
 
@@ -310,16 +291,8 @@ export class MailTimer {
   get speed()       { return this._speed; }
   get isPaused()    { return this._paused; }
 
-  _newTardisSpeed() {
-    // DEV: Picks a random speed in [0.5, 2.0] that differs from the current
-    // target by at least 0.2, so the timer always perceptibly changes direction.
-    const min = 0.5, max = 2.0;
-    let candidate;
-    do {
-      candidate = min + Math.random() * (max - min);
-      candidate = Math.round(candidate * 100) / 100; // round to 2dp
-    } while (Math.abs(candidate - this._tardisTargetSpeed) < 0.2);
-    return candidate;
+  _tardisRandomPhaseMs() {
+    return 5000 + Math.random() * 15000; // 5–20 seconds
   }
 }
 ```
@@ -330,35 +303,27 @@ export class MailTimer {
 
 ```javascript
 // DEV: GameState is the single source of truth for one timer session.
-// It is created when the user clicks Start and lives until the window closes.
-// It carries: the email payload, all mode flags, and a growing log.
-//
-// It has no side effects — it never touches the DOM, never calls a timer,
-// never sends anything. It just holds data and formats it for output.
+// Created when the user clicks Start and lives until the window closes.
+// Carries: email payload, all mode flags, and a growing log.
+// No side effects — never touches the DOM, never calls a timer, never sends.
 
 export class GameState {
   constructor(options) {
-    // ── Email payload ─────────────────────────────────────────────────────
     this.to      = options.to;
     this.subject = options.subject;
     this.body    = options.body;
-    // DEV: These are read once from the compose window at Start and stored here.
-    // They are not re-read during the countdown — the compose window could be
-    // edited while the timer runs, but that would not affect what gets sent.
+    // DEV: body is captured once at Start from the compose window and stored here.
+    // Edits to the compose window after Start do not affect what gets sent.
 
-    // ── Timer settings ────────────────────────────────────────────────────
     this.timerMode  = options.timerMode || 'fixed';
     this.rawSeconds = this._resolveSeconds(options);
-    // DEV: rawSeconds is the actual number the timer counts from. For random mode,
-    // it's resolved once at construction — the random draw happens here, not at Start.
+    // DEV: rawSeconds is locked in at construction. For random mode the draw
+    // happens here — the number is fixed before the timer starts.
 
-    // ── Send mode ─────────────────────────────────────────────────────────
     this.sendMode = options.sendMode || 'standard';
-    // DEV: 'commitmentIssues' causes doSend() to fire before the timer starts.
+    // DEV: 'commitmentIssues' triggers doSend() before the timer starts.
 
-    // ── Modifier flags ────────────────────────────────────────────────────
-    // DEV: These are all stored as plain booleans. popup.js reads them to
-    // decide what to show and what to do. They don't change after Start.
+    // DEV: Mode flags — all booleans, all locked at Start.
     this.blindfolded   = options.blindfolded   || false;
     this.tardis        = options.tardis        || false;
     this.spinTheWheel  = options.spinTheWheel  || false;
@@ -366,100 +331,43 @@ export class GameState {
     this.roulette      = options.roulette      || false;
     this.brokenUI      = options.brokenUI      || false;
     this.rosettaStone  = options.rosettaStone  || false;
-    this.braveMetadata = options.braveMetadata || false;
+    // DEV: metadataMode controls what gets appended to the email body.
+    // 'none' = nothing added. 'log' = game log. 'extra' = log + system info.
+    this.metadataMode  = options.metadataMode  || 'log';
+    // DEV: peekLimit is null (unlimited) or a number (max peeks allowed).
+    this.peekLimit     = options.peekLimit     ?? null;
+    this.peeksRemaining = this.peekLimit !== null ? this.peekLimit : Infinity;
 
-    // ── Live log ──────────────────────────────────────────────────────────
-    // DEV: This object grows during the session. Each player action (peek, pause,
-    // spin outcome, etc.) is recorded here. At send time, formatLog() turns it
-    // into a plain-text block that is appended to the email body.
     this.log = {
       timerMode:         this.timerMode,
       sendMode:          this.sendMode,
       secondsConfigured: this.rawSeconds,
       blindfoldedStart:  this.blindfolded,
-      blindfoldedMidRun: false,           // set if the live Blindfold button was used
+      blindfoldedMidRun: false,
+      peekLimit:         this.peekLimit,
       peekCount:         0,
       pauseCount:        0,
       tardisUsed:        this.tardis,
       brokenUIUsed:      this.brokenUI,
       rosettaStoneUsed:  this.rosettaStone,
-      spinOutcome:       null,            // 'sent' or 'blocked'
+      spinOutcome:       null,
       rouletteTriggered: false,
-      braveMetadata:     null,            // populated just before send
-      outcome:           null,            // 'sent' or 'cancelled'
+      braveMetadata:     null,
+      consentText:       null,  // DEV: set at Start when metadataMode is log or extra
+      outcome:           null,
       startedAt:         null,
       completedAt:       null,
     };
   }
 
   begin()               { this.log.startedAt  = new Date().toISOString(); }
-  recordPeek()          { this.log.peekCount++; }
+  recordPeek()          { this.log.peekCount++; if (this.peekLimit !== null) this.peeksRemaining = Math.max(0, this.peeksRemaining - 1); }
   recordPause()         { this.log.pauseCount++; }
-  recordSpinOutcome(sent) { this.log.spinOutcome = sent ? 'sent' : 'blocked'; }
+  recordSpinOutcome(s)  { this.log.spinOutcome = s ? 'sent' : 'blocked'; }
+  get canPeek()         { return this.peeksRemaining > 0; }
 
-  recordSend() {
-    this.log.outcome     = 'sent';
-    this.log.completedAt = new Date().toISOString();
-  }
-
-  recordCancel() {
-    this.log.outcome     = 'cancelled';
-    this.log.completedAt = new Date().toISOString();
-  }
-
-  formatLog() {
-    // DEV: Produces the plain-text block appended to the email body.
-    // Uses box-drawing characters for visual separation in plain-text email clients.
-    // The recipient sees this; it is intentionally readable.
-    const l = this.log;
-    const lines = [
-      '', '════════════════════════════════',
-      'Mailtimer — game log',
-      '════════════════════════════════', '',
-      `Timer mode:        ${l.timerMode}${l.tardisUsed ? ' (TARDIS)' : ''}`,
-      `Time configured:   ${l.secondsConfigured} seconds`,
-      `Send mode:         ${l.sendMode}`,
-      `Started:           ${l.startedAt || '—'}`,
-      `Completed:         ${l.completedAt || '—'}`,
-      `Outcome:           ${l.outcome || '—'}`, '',
-    ];
-
-    const actions = [];
-    if (l.blindfoldedStart)  actions.push('Started blindfolded');
-    if (l.blindfoldedMidRun) actions.push('Applied blindfold mid-run');
-    if (l.peekCount > 0)     actions.push(`Peeked at timer: ${l.peekCount} time${l.peekCount > 1 ? 's' : ''}`);
-    if (l.pauseCount > 0)    actions.push(`Paused timer: ${l.pauseCount} time${l.pauseCount > 1 ? 's' : ''}`);
-    if (l.spinOutcome)       actions.push(`Spin the wheel result: ${l.spinOutcome}`);
-    if (l.rouletteTriggered) actions.push('Roulette fired');
-    if (actions.length) {
-      lines.push('── Player actions ──');
-      actions.forEach(a => lines.push(`  ${a}`));
-      lines.push('');
-    }
-
-    const chaos = [];
-    if (l.brokenUIUsed)     chaos.push('Bricked UI was active');
-    if (l.rosettaStoneUsed) chaos.push('Rosetta Stone was active');
-    if (chaos.length) {
-      lines.push('── Chaos modes ──');
-      chaos.forEach(c => lines.push(`  ${c}`));
-      lines.push('');
-    }
-
-    lines.push('════════════════════════════════');
-    return lines.join('\n');
-  }
-
-  _resolveSeconds(options) {
-    if (options.timerMode === 'random') {
-      const min = options.randomMin || 60;
-      const max = options.randomMax || 600;
-      // DEV: The random draw happens here, at GameState construction (i.e. at Start).
-      // This ensures the number is locked in even if the user somehow inspects state.
-      return Math.floor(min + Math.random() * (max - min));
-    }
-    return options.seconds || 600;
-  }
+  recordSend()   { this.log.outcome = 'sent';      this.log.completedAt = new Date().toISOString(); }
+  recordCancel() { this.log.outcome = 'cancelled'; this.log.completedAt = new Date().toISOString(); }
 }
 ```
 
@@ -469,52 +377,34 @@ export class GameState {
 
 ```javascript
 // DEV: Assembles the final email object passed to the Thunderbird compose API.
-// Keeps the send logic thin — popup.js calls buildEmail() and gets back a
-// plain object with {to, subject, body}. It doesn't need to know how the
-// log or brave metadata are formatted.
+// buildEmail() returns both body (HTML) and plainTextBody (pipe-separated).
+// setComposeDetails receives both; Thunderbird picks the right one.
 
 export function buildEmail(gameState, braveMetadata = null) {
-  const gameLog  = gameState.formatLog();
-  const braveLog = braveMetadata ? formatBraveMetadata(braveMetadata) : '';
+  const mode = gameState.metadataMode || 'log';
+
+  const gameLogText  = mode !== 'none' ? gameState.formatLog()           : '';
+  const braveLogText = mode === 'extra' && braveMetadata
+    ? formatBraveMetadata(braveMetadata) : '';
+
+  // DEV: Plain text version — pipe-separated. Works regardless of email mode.
+  const plainBody = gameState.body + gameLogText + braveLogText;
+
+  // DEV: HTML version — uses a styled table for the game log.
+  // The original body is HTML-escaped so special characters don't break markup.
+  const originalHtml = gameState.body
+    .replace(/&/g, '&amp;').replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;').replace(/\n/g, '<br>');
+
+  const logHtml = mode !== 'none'
+    ? formatLogHtml(gameState, mode === 'extra' ? braveMetadata : null) : '';
 
   return {
-    to:      gameState.to,
-    subject: gameState.subject,  // DEV: subject prefix added in doSend(), not here
-    body:    gameState.body + gameLog + braveLog,
+    to:            gameState.to,
+    subject:       gameState.subject,
+    body:          originalHtml + logHtml,    // HTML version
+    plainTextBody: plainBody,                  // plain text fallback
   };
-}
-
-export function formatBraveMetadata(meta) {
-  // DEV: Formats the optional system-info block. The sender explicitly opted in.
-  // Nothing here is gathered without consent — gatherBraveMetadata() in popup.js
-  // is only called if gameState.braveMetadata is true.
-  return [
-    '', '════════════════════════════════',
-    'A little extra — sender system info',
-    '(The sender consented to including this)',
-    '════════════════════════════════', '',
-    `Sent at (UTC):          ${meta['sent-at']      || '—'}`,
-    `Local date and time:    ${meta['local-time']   || '—'}`,
-    `Timezone (IANA):        ${meta['timezone']     || '—'}`,
-    `Approximate region:     ${meta['region-guess'] || '—'}`, '',
-    `Language / locale:      ${meta['locale']       || '—'}`,
-    `Operating system:       ${meta['platform']     || '—'}`, '',
-    `Time spent on timer:    ${meta['elapsed-seconds'] != null
-      ? meta['elapsed-seconds'] + ' seconds' : '—'}`, '',
-    '════════════════════════════════',
-  ].join('\n');
-}
-
-export function validateEmail(gameState) {
-  // DEV: Called by popup.js to gate the Start button. Checks for a valid-looking
-  // To address. Does not perform full RFC 5322 validation — just a basic @ check.
-  if (!gameState.to || !gameState.to.includes('@')) {
-    return { valid: false, reason: 'Recipient email address is missing or invalid.' };
-  }
-  if (!gameState.subject || !gameState.subject.trim()) {
-    return { valid: false, reason: 'Subject line is empty.' };
-  }
-  return { valid: true };
 }
 ```
 
@@ -525,7 +415,6 @@ export function validateEmail(gameState) {
 ```javascript
 // DEV: Display logic that works identically in Thunderbird and a plain browser.
 // Never touches the DOM directly — returns data that the platform layer renders.
-// This keeps it testable and makes the web version straightforward to add later.
 
 export function formatTime(secondsLeft) {
   // DEV: Returns a plain integer string — "347", "12", "1".
@@ -534,10 +423,10 @@ export function formatTime(secondsLeft) {
 }
 
 export function timerDisplay(secondsLeft, { blindfolded, peeking, rosettaTable } = {}) {
-  // DEV: Central display logic. Three states:
+  // DEV: Three states:
   // 1. Blindfolded and not peeking → '???'
-  // 2. Rosetta Stone active        → substituted string (stable per session)
-  // 3. Normal                      → plain integer
+  // 2. Babel active (rosettaTable set) → substituted string (stable per session)
+  // 3. Normal → plain integer
   if (blindfolded && !peeking) return '???';
   const display = formatTime(secondsLeft);
   if (rosettaTable) return applySubstitution(display, rosettaTable);
@@ -545,51 +434,46 @@ export function timerDisplay(secondsLeft, { blindfolded, peeking, rosettaTable }
 }
 
 export function buttonStates(sessionState) {
-  // DEV: Returns the intended state of each button as {visible, enabled, label}.
-  // popup.js calls applyButtonState() on each result. The logic here is pure —
-  // no DOM reads or writes, just flag evaluation.
-  const { running, paused, secondsLeft, brokenUI, rosettaTable, lastMinute, blindfolded } = sessionState;
+  // DEV: Returns intended state of each button as {visible, enabled, label}.
+  // Both Cancel and Pause are always visible. In Last Minute mode, both are
+  // disabled until secondsLeft <= 60. In Unstable UI mode, both are always disabled.
+  // peeksRemaining controls whether the Peek button is enabled.
+  const { running, paused, secondsLeft, brokenUI, rosettaTable,
+          lastMinute, blindfolded, peeksRemaining = Infinity } = sessionState;
 
-  const inLastMinute  = secondsLeft <= 60;
-  const cancelVisible = !lastMinute || inLastMinute;
-  // DEV: Pause is also locked in Last Minute mode — not just Cancel.
-  const pauseEnabled  = !brokenUI && (!lastMinute || inLastMinute);
+  const inLastMinute = secondsLeft <= 60;
+  const cancelEnabled = (!lastMinute || inLastMinute) && !brokenUI;
+  const pauseEnabled  = (!lastMinute || inLastMinute) && !brokenUI;
+
+  const peekVisible = running && blindfolded;
+  const peekEnabled = peekVisible && peeksRemaining > 0;
+  const peekLabel   = (peeksRemaining !== Infinity && peeksRemaining >= 0)
+    ? `Take a peek (${peeksRemaining} left)` : 'Take a peek';
 
   const buttons = {
-    start:    { visible: !running, enabled: true,         label: 'Start' },
-    pause:    { visible: running,  enabled: pauseEnabled, label: paused ? 'Resume' : 'Pause' },
-    cancel:   { visible: running && cancelVisible, enabled: !brokenUI, label: 'Cancel' },
-    blindfold:{ visible: true,     enabled: !running,     label: blindfolded ? 'Remove blindfold' : 'Blindfold' },
-    peek:     { visible: running && blindfolded, enabled: true, label: 'Take a peek' },
+    start:    { visible: !running, enabled: true,          label: 'Start' },
+    pause:    { visible: running,  enabled: pauseEnabled,  label: paused ? 'Resume' : 'Pause' },
+    cancel:   { visible: running,  enabled: cancelEnabled, label: 'Cancel' },
+    blindfold:{ visible: true,     enabled: !running,      label: blindfolded ? 'Remove blindfold' : 'Blindfold' },
+    peek:     { visible: peekVisible, enabled: peekEnabled, label: peekLabel },
   };
 
   if (rosettaTable && running) {
-    // DEV: Apply the pre-built table to all visible button labels.
-    // Called every tick, but the same table means the same label always produces
-    // the same scrambled output — no flickering.
+    // DEV: Babel — apply the pre-built substitution table to all visible labels.
+    // Same table every tick = same output = no flickering.
     for (const key of Object.keys(buttons)) {
-      if (buttons[key].visible) {
+      if (buttons[key].visible)
         buttons[key].label = applySubstitution(buttons[key].label, rosettaTable);
-      }
     }
   }
 
   return buttons;
 }
 
-export function disclaimerText() {
-  // DEV: Returns the consent checkbox text. No scrambling on the setup screen —
-  // Rosetta Stone only activates after Start is clicked.
-  return 'I understand this will send an email on my behalf. '
-    + 'I consent to the recipient receiving and using this information at their discretion.';
-}
-
 export function buildRosettaTable() {
-  // DEV: Generates a one-time character substitution table.
-  // The 62-character pool (A–Z, a–z, 0–9) is Fisher-Yates shuffled.
-  // The result is a Map<original, substituted> where every alphanumeric
-  // maps to a different alphanumeric — letters can become digits and vice versa.
-  // Symbols, spaces, and punctuation are not in the pool and pass through unchanged.
+  // DEV: Generates a one-time character substitution table for Babel mode.
+  // The 62-character alphanumeric pool is Fisher-Yates shuffled into a bijection.
+  // Letters can become digits and vice versa. Symbols pass through unchanged.
   const pool    = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789';
   const poolArr = pool.split('');
   const shuffled = [...poolArr];
@@ -603,20 +487,7 @@ export function buildRosettaTable() {
 }
 
 export function applySubstitution(str, table) {
-  // DEV: Applies the table to a string. Characters not in the table pass through.
   return str.split('').map(c => table.get(c) ?? c).join('');
-}
-
-export function scrambleWords(text) {
-  // DEV: Fisher-Yates shuffle of the words in a string, used for the consent
-  // text in Rosetta Stone mode. Words remain individually legible; the sentence
-  // becomes nonsensical.
-  const words = text.split(' ');
-  for (let i = words.length - 1; i > 0; i--) {
-    const j = Math.floor(Math.random() * (i + 1));
-    [words[i], words[j]] = [words[j], words[i]];
-  }
-  return words.join(' ');
 }
 
 export function spinTheWheel() {
@@ -629,10 +500,10 @@ export function spinTheWheel() {
 
 ### popup/popup.html
 
-The HTML defines three screens that are shown/hidden by toggling the `active` class:
+The HTML defines three screens shown/hidden by toggling the `active` class:
 
-- **screen-setup** — the configuration panel. Left column: Timer length, Modifiers, Chaos, Brave metadata. Right column: timer preview display, Blindfold toggle, Consent checkbox, Start button.
-- **screen-running** — the live countdown. Left column: active mode flags. Right column: the timer display, and the action buttons (Pause, Cancel, Peek, live Blindfold, live Roulette).
+- **screen-setup** — the configuration panel. Left column: Timer length, Modifiers, Chaos, Prove you're playing? Right column: timer preview display, Blindfold toggle (with optional peek limit), Consent checkbox, Start button.
+- **screen-running** — the live countdown. Left column: active mode flags. Right column: timer display and action buttons (Pause, Cancel, Send now, Peek, live Blindfold, Roulette).
 - **screen-outcome** — shown after send or cancel. Icon, title, detail text, and a Close button.
 
 Nothing interactive happens in the HTML itself — all logic is in `popup.js`.
@@ -644,25 +515,27 @@ Nothing interactive happens in the HTML itself — all logic is in `popup.js`.
 Standard CSS. Notable decisions:
 
 - `body` has `min-width: 480px` but no fixed width — the window is resizable.
-- `.option-row > span` is `display: block` — this is what makes option names and descriptions stack vertically rather than sitting side-by-side.
-- `.outcome-detail` has `white-space: pre-line` — allows `\n` in the JS string to render as visible line breaks.
-- `.btn:disabled` has `opacity: 0.4` — disabled buttons are visible but clearly inactive. In Bricked UI, Cancel and Pause render this way even though the user didn't disable them.
+- `.option-row > span` is `display: inline` — option name and description sit on the same line, separated by ` — ` in the text.
+- `.option-name` is `font-weight: 700` (bold, dark) and `.option-desc` stays grey — visual hierarchy without extra elements.
+- `.group-title` is bold and dark (`#1a1a1a`) — section headings are prominent.
+- `.outcome-detail` has `white-space: pre-line` — allows `\n` in JS strings to render as line breaks.
+- `.btn:disabled` has `opacity: 0.4` — disabled buttons are visible but clearly inactive. Both Cancel and Pause render this way in Unstable UI and Last Minute modes.
 
 ---
 
 ### popup/popup.js
 
-This is the longest file (~300 lines of logic after stripping comments). Key sections:
+Key sections:
 
 **Initialisation:** Reads `?composeTabId` from the URL, starts polling the To field every 2 seconds via `getComposeDetails()`, and sets up event listeners.
 
-**Start handler:** Reads all toggle states, creates a `GameState`, calls `gameState.begin()`, and either fires immediately (Roulette / Commitment Issues) or calls `startRunningScreen()`.
+**Start handler:** Reads all toggle states including `getMetadataMode()` (the radio button group), creates a `GameState`, captures the consent text if metadata mode is not `none`, calls `gameState.begin()`, and either fires immediately (Roulette / Commitment Issues) or calls `startRunningScreen()`.
 
-**startRunningScreen():** Builds the Rosetta table if needed, applies initial label scrambling, arms the Bricked UI timeout, creates a `MailTimer`, and starts it. The `onTick` callback runs every 100ms — updates the display, recomputes button states, and passes them to `applyButtonState()`.
+**startRunningScreen():** Builds the Babel substitution table if needed, applies initial label scrambling (stripping colour classes so no button is identifiable by colour), arms the Unstable UI timeout, creates a `MailTimer`, starts it. The `onTick` callback runs every 100ms — updates the display, recomputes button states, shows/hides the peek exhausted message.
 
-**doSend():** Optionally collects brave metadata, calls `gameState.recordSend()`, calls `buildEmail()`, prefixes the subject, calls `browser.compose.setComposeDetails()` then `browser.compose.sendMessage()`, refocuses the Mailtimer window, then calls `showOutcome()`.
+**doSend():** Collects brave metadata if `metadataMode === 'extra'`, calls `gameState.recordSend()`, calls `buildEmail()` which returns both HTML and plain text body versions, prefixes the subject, calls `browser.compose.setComposeDetails()` with both body versions, calls `browser.compose.sendMessage()`, refocuses the Mailtimer window, then calls `showOutcome()`.
 
-**showOutcome():** Switches to the outcome screen and populates it. The outcome screen is never scrambled — plain text regardless of active modes.
+**showOutcome():** Switches to the outcome screen and populates it. The outcome screen is never scrambled — plain text regardless of active modes. Outcome text is deliberately uncertain ("Did you lose the game? Has your information been sent?") because the player may have dismissed the Thunderbird send dialogue.
 
 ---
 
@@ -670,8 +543,8 @@ This is the longest file (~300 lines of logic after stripping comments). Key sec
 
 **Adding a new mode:** Add a toggle to `popup.html`, a flag to the `GameState` constructor, wire the toggle in `popup.js`'s Start handler, and add the effect wherever it belongs (`onTick`, `onComplete`, `buttonStates`, etc.). Add it to `populateRunFlags()` so it appears in the running screen's mode list.
 
-**Changing the timer behaviour:** Only `timer.js` needs touching. The `onTick` and `onComplete` callbacks give popup.js everything it needs to respond.
+**Changing the timer behaviour:** Only `timer.js` needs touching. The `onTick` and `onComplete` callbacks give `popup.js` everything it needs to respond.
 
 **Adding a web version:** Replace `popup.js`'s `getComposeDetails()` and `doSend()` with implementations that call your server API. Everything in `core/` works as-is.
 
-**Changing the log format:** Only `gameState.js → formatLog()` and `emailData.js → formatBraveMetadata()` need changing.
+**Changing the log format:** `gameState.js → formatLog()` controls the pipe-separated plain text version. `emailData.js → formatLogHtml()` controls the HTML table version. Both need updating together if you change field names.

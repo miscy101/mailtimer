@@ -87,7 +87,7 @@ export function buttonStates(sessionState) {
     pause: {
       visible: running,
       enabled: pauseEnabled,
-      label:   paused ? 'Resume' : 'Pause',
+      label:   paused ? 'Un-pause' : 'Pause',
     },
     cancel: {
       visible: running,
